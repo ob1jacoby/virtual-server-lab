@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Virtual Server Hardware Lab - CC1.1 (Canvas Version)</title>
+    <title>Virtual Server Hardware Lab - CC1.1</title>
     <style>
         * {
             margin: 0;
@@ -16,12 +16,12 @@
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: #333;
             line-height: 1.6;
-            padding: 20px;
         }
         
         .container {
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
+            padding: 20px;
         }
         
         .header {
@@ -34,22 +34,132 @@
             backdrop-filter: blur(10px);
         }
         
-        .section {
+        .lab-tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .tab-btn {
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            color: #1e3c72;
+        }
+        
+        .tab-btn:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .tab-btn.active {
+            background: #ff6b35;
+            color: white;
+        }
+        
+        .lab-content {
             background: white;
             border-radius: 15px;
             padding: 30px;
             margin-bottom: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: none;
         }
         
-        .section h2 {
-            color: #1e3c72;
-            border-bottom: 3px solid #ff6b35;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+        .lab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
         }
         
-        .scenario-box {
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .server-rack {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .server-unit {
+            background: #f8f9fa;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .server-unit:hover {
+            border-color: #007bff;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,123,255,0.1);
+        }
+        
+        .server-unit.selected {
+            border-color: #28a745;
+            background: #e8f5e8;
+        }
+        
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .component {
+            background: linear-gradient(145deg, #f0f0f0, #e0e0e0);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .component:hover {
+            transform: scale(1.05);
+            border-color: #007bff;
+        }
+        
+        .component.installed {
+            background: linear-gradient(145deg, #d4edda, #c3e6cb);
+            border-color: #28a745;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            width: 0%;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .task-panel {
             background: #f8f9fa;
             border-left: 4px solid #007bff;
             padding: 20px;
@@ -57,129 +167,139 @@
             border-radius: 0 10px 10px 0;
         }
         
-        .server-grid {
+        .btn {
+            background: linear-gradient(145deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+        }
+        
+        .btn.success {
+            background: linear-gradient(145deg, #28a745, #1e7e34);
+        }
+        
+        .btn.warning {
+            background: linear-gradient(145deg, #ffc107, #e0a800);
+            color: #212529;
+        }
+        
+        .btn.danger {
+            background: linear-gradient(145deg, #dc3545, #c82333);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online { background: #28a745; }
+        .status-offline { background: #dc3545; }
+        .status-maintenance { background: #ffc107; }
+        
+        .storage-config {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .raid-option {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .raid-option:hover {
+            border-color: #007bff;
+            transform: translateY(-3px);
+        }
+        
+        .raid-option.selected {
+            border-color: #28a745;
+            background: #e8f5e8;
+        }
+        
+        .simulation-log {
+            background: #212529;
+            color: #28a745;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        
+        .quiz-container {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        
+        .question {
+            margin-bottom: 20px;
+        }
+        
+        .answer-option {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .answer-option:hover {
+            border-color: #007bff;
+        }
+        
+        .answer-option.correct {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        
+        .answer-option.incorrect {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        
+        .maintenance-schedule {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
             margin: 20px 0;
         }
         
-        .server-card {
-            background: #f8f9fa;
-            border: 3px solid #ddd;
+        .maintenance-task {
+            background: white;
+            border: 2px solid #ddd;
             border-radius: 10px;
             padding: 20px;
             transition: all 0.3s ease;
         }
         
-        .server-card.recommended {
+        .maintenance-task.completed {
             border-color: #28a745;
             background: #e8f5e8;
-        }
-        
-        .server-card.not-recommended {
-            border-color: #dc3545;
-            background: #f8d7da;
-        }
-        
-        .server-card.over-spec {
-            border-color: #ffc107;
-            background: #fff3cd;
-        }
-        
-        .component-sequence {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        
-        .component-step {
-            background: linear-gradient(145deg, #f0f0f0, #e0e0e0);
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            position: relative;
-        }
-        
-        .step-number {
-            position: absolute;
-            top: -10px;
-            left: -10px;
-            background: #ff6b35;
-            color: white;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 14px;
-        }
-        
-        .component-step h4 {
-            color: #1e3c72;
-            margin-bottom: 10px;
-        }
-        
-        .storage-options {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin: 20px 0;
-        }
-        
-        .storage-card {
-            background: white;
-            border: 3px solid #ddd;
-            border-radius: 10px;
-            padding: 20px;
-        }
-        
-        .storage-card.best-choice {
-            border-color: #28a745;
-            background: #e8f5e8;
-        }
-        
-        .storage-card.poor-choice {
-            border-color: #dc3545;
-            background: #f8d7da;
-        }
-        
-        .storage-card.acceptable {
-            border-color: #17a2b8;
-            background: #d1ecf1;
-        }
-        
-        .maintenance-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin: 20px 0;
-        }
-        
-        .maintenance-card {
-            background: white;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            padding: 20px;
-        }
-        
-        .priority-critical {
-            border-left: 6px solid #dc3545;
-        }
-        
-        .priority-high {
-            border-left: 6px solid #fd7e14;
-        }
-        
-        .priority-medium {
-            border-left: 6px solid #ffc107;
-        }
-        
-        .priority-low {
-            border-left: 6px solid #28a745;
         }
         
         .alert {
@@ -206,105 +326,6 @@
             border-color: #17a2b8;
             color: #0c5460;
         }
-        
-        .alert-danger {
-            background: #f8d7da;
-            border-color: #dc3545;
-            color: #721c24;
-        }
-        
-        .knowledge-check {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 25px;
-            margin: 20px 0;
-            border: 2px solid #007bff;
-        }
-        
-        .question-box {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 15px 0;
-            border-left: 4px solid #007bff;
-        }
-        
-        .pros-cons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin: 15px 0;
-        }
-        
-        .pros {
-            background: #d4edda;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #28a745;
-        }
-        
-        .cons {
-            background: #f8d7da;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #dc3545;
-        }
-        
-        .checklist {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-        
-        .checklist ul {
-            list-style: none;
-            padding-left: 0;
-        }
-        
-        .checklist li {
-            padding: 8px 0;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        .checklist li:before {
-            content: "☐ ";
-            font-weight: bold;
-            color: #007bff;
-            margin-right: 8px;
-        }
-        
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-        
-        .status-online { background: #28a745; }
-        .status-offline { background: #dc3545; }
-        .status-maintenance { background: #ffc107; }
-        
-        .reflection-box {
-            background: linear-gradient(145deg, #e3f2fd, #bbdefb);
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
-            border-left: 4px solid #2196f3;
-        }
-        
-        @media (max-width: 768px) {
-            .pros-cons {
-                grid-template-columns: 1fr;
-            }
-            
-            .server-grid,
-            .storage-options,
-            .maintenance-grid {
-                grid-template-columns: 1fr;
-            }
-        }
     </style>
 </head>
 <body>
@@ -312,154 +333,114 @@
         <div class="header">
             <h1>Virtual Server Hardware Laboratory</h1>
             <h2>CC1.1: Install and maintain physical server hardware components</h2>
-            <p>Educational guide covering hardware evaluation, storage deployment, and maintenance procedures</p>
+            <p>Interactive simulation covering hardware evaluation, storage deployment, and maintenance procedures</p>
         </div>
 
-        <!-- LO1.1.1: Hardware Evaluation -->
-        <div class="section">
-            <h2>LO1.1.1: Evaluate server hardware requirements including installation procedure</h2>
+        <div class="lab-tabs">
+            <button class="tab-btn active" onclick="showTab('hardware-eval')">LO1.1.1: Hardware Evaluation</button>
+            <button class="tab-btn" onclick="showTab('storage-deploy')">LO1.1.2: Storage Solutions</button>
+            <button class="tab-btn" onclick="showTab('maintenance')">LO1.1.3: Maintenance Procedures</button>
+            <button class="tab-btn" onclick="showTab('assessment')">Assessment</button>
+        </div>
+
+        <!-- LO1.1.1: Hardware Evaluation Tab -->
+        <div id="hardware-eval" class="lab-content active">
+            <h3>LO1.1.1: Evaluate server hardware requirements including installation procedure</h3>
             
-            <div class="scenario-box">
-                <h3>📋 Scenario: Small Business Web Server Deployment</h3>
-                <p><strong>Requirements:</strong> Your organization needs a new web server to handle <strong>1000 concurrent users</strong>, host a database, and provide file sharing services.</p>
-                <p><strong>Your Task:</strong> Evaluate hardware requirements and plan the installation sequence.</p>
+            <div class="task-panel">
+                <h4>Scenario: Small Business Web Server Deployment</h4>
+                <p>Your organization needs a new web server to handle 1000 concurrent users, host a database, and provide file sharing services. Evaluate hardware requirements and plan the installation.</p>
             </div>
 
-            <h3>Available Server Configurations</h3>
-            <div class="server-grid">
-                <div class="server-card not-recommended">
-                    <h4>Budget Server (1U) - ❌ Not Recommended</h4>
+            <div class="alert alert-info">
+                <strong>Task:</strong> Select appropriate hardware components based on the given requirements.
+            </div>
+
+            <h4>Available Server Configurations</h4>
+            <div class="server-rack">
+                <div class="server-unit" onclick="selectServer(this, 'budget')">
+                    <h5>Budget Server (1U)</h5>
                     <p><strong>CPU:</strong> Intel Xeon E-2234 (4 cores, 3.6GHz)</p>
                     <p><strong>RAM:</strong> 16GB DDR4</p>
                     <p><strong>Storage:</strong> 2x 1TB SATA HDD</p>
                     <p><strong>Network:</strong> 2x 1GbE</p>
                     <p><strong>Price:</strong> $2,500</p>
-                    
-                    <div class="alert alert-danger">
-                        <strong>Analysis:</strong> Insufficient for 1000 concurrent users
-                        <ul>
-                            <li>❌ CPU cores insufficient for high load</li>
-                            <li>❌ RAM will cause performance bottlenecks</li>
-                            <li>❌ Storage lacks redundancy</li>
-                            <li>❌ Network capacity inadequate</li>
-                        </ul>
-                    </div>
                 </div>
                 
-                <div class="server-card recommended">
-                    <h4>Performance Server (2U) - ✅ Recommended Choice</h4>
+                <div class="server-unit" onclick="selectServer(this, 'performance')">
+                    <h5>Performance Server (2U)</h5>
                     <p><strong>CPU:</strong> Intel Xeon Silver 4214 (12 cores, 2.2GHz)</p>
                     <p><strong>RAM:</strong> 64GB DDR4</p>
                     <p><strong>Storage:</strong> 4x 2TB SAS HDD + 2x 500GB SSD</p>
                     <p><strong>Network:</strong> 4x 1GbE + 2x 10GbE</p>
                     <p><strong>Price:</strong> $8,500</p>
-                    
-                    <div class="alert alert-success">
-                        <strong>Analysis:</strong> Optimal for specified requirements
-                        <ul>
-                            <li>✅ Adequate CPU cores for concurrent users</li>
-                            <li>✅ Sufficient RAM for database operations</li>
-                            <li>✅ Hybrid storage provides performance + capacity</li>
-                            <li>✅ Network capacity supports expected traffic</li>
-                        </ul>
-                    </div>
                 </div>
                 
-                <div class="server-card over-spec">
-                    <h4>Enterprise Server (4U) - ⚠️ Over-Specified</h4>
+                <div class="server-unit" onclick="selectServer(this, 'enterprise')">
+                    <h5>Enterprise Server (4U)</h5>
                     <p><strong>CPU:</strong> 2x Intel Xeon Gold 6248 (20 cores each, 2.5GHz)</p>
                     <p><strong>RAM:</strong> 256GB DDR4</p>
                     <p><strong>Storage:</strong> 8x 4TB SAS HDD + 4x 1TB NVMe SSD</p>
                     <p><strong>Network:</strong> 4x 10GbE + 2x 25GbE</p>
                     <p><strong>Price:</strong> $25,000</p>
-                    
-                    <div class="alert alert-warning">
-                        <strong>Analysis:</strong> Exceeds requirements but future-proof
-                        <ul>
-                            <li>✅ High-performance dual CPUs</li>
-                            <li>✅ Massive RAM for future growth</li>
-                            <li>✅ Enterprise-grade storage performance</li>
-                            <li>⚠️ Significantly over budget for current needs</li>
-                        </ul>
+                </div>
+            </div>
+
+            <div id="server-analysis" style="display: none;">
+                <h4>Hardware Analysis</h4>
+                <div id="analysis-result"></div>
+                <button class="btn" onclick="proceedToInstallation()">Proceed to Installation Planning</button>
+            </div>
+
+            <div id="installation-planning" style="display: none;">
+                <h4>Installation Procedure Planning</h4>
+                <div class="alert alert-warning">
+                    <strong>Challenge:</strong> Components must be installed in the correct order. Installing in the wrong sequence could damage hardware or require rework. Click components in the proper installation sequence.
+                </div>
+                
+                <div class="alert alert-info" id="current-step">
+                    <strong>Current Task:</strong> <span id="step-instruction">Select the foundation component that must be addressed before any other system elements can function</span>
+                </div>
+                
+                <div class="component-grid" id="component-container">
+                    <!-- Components will be randomized here -->
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="install-progress">0%</div>
+                </div>
+                
+                <div id="installation-quiz" style="display: none;">
+                    <h4>Installation Knowledge Check</h4>
+                    <div class="quiz-container">
+                        <div class="question">
+                            <p><strong>Before proceeding, answer this question about your selected server:</strong></p>
+                            <p id="install-question">What is the most critical consideration when installing the CPU?</p>
+                            <div id="quiz-options">
+                                <!-- Options will be populated dynamically -->
+                            </div>
+                        </div>
+                        <button class="btn" onclick="submitInstallAnswer()" id="submit-install-btn" disabled>Submit Answer</button>
+                        <div id="install-feedback"></div>
                     </div>
                 </div>
-            </div>
-
-            <h3>Proper Installation Sequence</h3>
-            <div class="alert alert-info">
-                <strong>Critical:</strong> Components must be installed in the correct order to prevent damage and ensure functionality.
-            </div>
-            
-            <div class="component-sequence">
-                <div class="component-step">
-                    <div class="step-number">1</div>
-                    <h4>Electrical Infrastructure Setup</h4>
-                    <p><strong>Why First:</strong> All other components require stable power to function safely</p>
-                    <p><strong>Tasks:</strong> Install redundant power supplies, verify voltage stability</p>
-                </div>
                 
-                <div class="component-step">
-                    <div class="step-number">2</div>
-                    <h4>Central Processing Unit Integration</h4>
-                    <p><strong>Why Second:</strong> Requires direct motherboard access before other components</p>
-                    <p><strong>Tasks:</strong> Install CPU(s), apply thermal paste, mount cooling systems</p>
-                </div>
-                
-                <div class="component-step">
-                    <div class="step-number">3</div>
-                    <h4>Volatile Memory Module Installation</h4>
-                    <p><strong>Why Third:</strong> CPU must be present to determine optimal memory configuration</p>
-                    <p><strong>Tasks:</strong> Install RAM in proper DIMM slots, verify POST compatibility</p>
-                </div>
-                
-                <div class="component-step">
-                    <div class="step-number">4</div>
-                    <h4>Persistent Data Repository Setup</h4>
-                    <p><strong>Why Fourth:</strong> Requires stable power connections established in step 1</p>
-                    <p><strong>Tasks:</strong> Install drives, configure RAID controllers, initialize arrays</p>
-                </div>
-                
-                <div class="component-step">
-                    <div class="step-number">5</div>
-                    <h4>Communication Interface Configuration</h4>
-                    <p><strong>Why Fifth:</strong> Physical infrastructure must be complete before connectivity</p>
-                    <p><strong>Tasks:</strong> Configure network interfaces, establish cable connections</p>
-                </div>
-                
-                <div class="component-step">
-                    <div class="step-number">6</div>
-                    <h4>System Configuration Interface</h4>
-                    <p><strong>Why Last:</strong> All hardware must be present for proper detection and optimization</p>
-                    <p><strong>Tasks:</strong> Configure BIOS/UEFI settings, optimize boot sequences</p>
-                </div>
-            </div>
-
-            <div class="knowledge-check">
-                <h3>🧠 Knowledge Check Questions</h3>
-                <div class="question-box">
-                    <p><strong>Question 1:</strong> Why must electrical infrastructure be established before installing other components?</p>
-                    <p><strong>Think About:</strong> What happens if you try to test components without stable power? What are the risks of power fluctuations during installation?</p>
-                </div>
-                
-                <div class="question-box">
-                    <p><strong>Question 2:</strong> What could happen if you install memory modules before the CPU is properly seated?</p>
-                    <p><strong>Consider:</strong> How does the CPU determine optimal memory configuration? What compatibility issues might arise?</p>
-                </div>
-                
-                <div class="question-box">
-                    <p><strong>Question 3:</strong> Why is system configuration (BIOS/UEFI) performed last in the installation sequence?</p>
-                    <p><strong>Analyze:</strong> What hardware detection processes occur during firmware configuration? What happens if components are added after firmware setup?</p>
-                </div>
+                <div class="simulation-log" id="install-log"></div>
             </div>
         </div>
 
-        <!-- LO1.1.2: Storage Solutions -->
-        <div class="section">
-            <h2>LO1.1.2: Deploy appropriate storage solutions based on organizational needs</h2>
+        <!-- LO1.1.2: Storage Solutions Tab -->
+        <div id="storage-deploy" class="lab-content">
+            <h3>LO1.1.2: Deploy appropriate storage solutions based on organizational needs</h3>
             
-            <div class="scenario-box">
-                <h3>💾 Scenario: Database Server Storage Design</h3>
-                <p><strong>Requirements:</strong> Design storage for a database server requiring:</p>
+            <div class="task-panel">
+                <h4>Scenario: Database Server Storage Design</h4>
+                <p>Design a storage solution for a database server that requires high availability, fast performance, and data protection. Consider different RAID levels and storage types.</p>
+            </div>
+
+            <h4>Storage Requirements Analysis</h4>
+            <div class="alert alert-info">
+                <strong>Requirements:</strong>
                 <ul>
                     <li>High availability (99.9% uptime)</li>
                     <li>Fast read/write performance for database operations</li>
@@ -469,212 +450,999 @@
                 </ul>
             </div>
 
-            <h3>Data Protection Strategy Options</h3>
-            <div class="storage-options">
-                <div class="storage-card poor-choice">
-                    <h4>Performance-Optimized Striping (RAID 0) - ❌ Poor Choice</h4>
-                    <p><strong>Performance:</strong> Excellent</p>
-                    <p><strong>Redundancy:</strong> None</p>
-                    <p><strong>Capacity:</strong> 100% of drives</p>
-                    <p><strong>Min Drives:</strong> 2</p>
-                    
-                    <div class="pros-cons">
-                        <div class="pros">
-                            <h5>✅ Advantages</h5>
-                            <ul>
-                                <li>Maximum performance</li>
-                                <li>Full capacity utilization</li>
-                                <li>Simple configuration</li>
-                            </ul>
-                        </div>
-                        <div class="cons">
-                            <h5>❌ Critical Flaws</h5>
-                            <ul>
-                                <li><strong>No redundancy</strong> - single drive failure destroys all data</li>
-                                <li>Does not meet availability requirement</li>
-                                <li>Unsuitable for production databases</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="storage-card acceptable">
-                    <h4>Synchronized Data Mirroring (RAID 1) - ⚠️ Acceptable</h4>
-                    <p><strong>Performance:</strong> Good read, average write</p>
-                    <p><strong>Redundancy:</strong> 1 drive failure tolerance</p>
-                    <p><strong>Capacity:</strong> 50% of drives</p>
-                    <p><strong>Min Drives:</strong> 2</p>
-                    
-                    <div class="pros-cons">
-                        <div class="pros">
-                            <h5>✅ Advantages</h5>
-                            <ul>
-                                <li>Simple redundancy</li>
-                                <li>Good read performance</li>
-                                <li>Fast recovery</li>
-                            </ul>
-                        </div>
-                        <div class="cons">
-                            <h5>⚠️ Limitations</h5>
-                            <ul>
-                                <li>Only 50% capacity utilization</li>
-                                <li>Average write performance</li>
-                                <li>Need 20TB raw for 10TB usable</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="storage-card poor-choice">
-                    <h4>Distributed Parity Protection (RAID 5) - ❌ Poor for Database</h4>
-                    <p><strong>Performance:</strong> Good read, poor write</p>
-                    <p><strong>Redundancy:</strong> 1 drive failure tolerance</p>
-                    <p><strong>Capacity:</strong> (n-1)/n of drives</p>
-                    <p><strong>Min Drives:</strong> 3</p>
-                    
-                    <div class="pros-cons">
-                        <div class="pros">
-                            <h5>✅ Advantages</h5>
-                            <ul>
-                                <li>Good capacity utilization</li>
-                                <li>Fault tolerance</li>
-                                <li>Cost-effective</li>
-                            </ul>
-                        </div>
-                        <div class="cons">
-                            <h5>❌ Database Issues</h5>
-                            <ul>
-                                <li><strong>Poor write performance</strong> due to parity calculations</li>
-                                <li>Long rebuild times with large drives</li>
-                                <li>Write penalty affects database operations</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="storage-card best-choice">
-                    <h4>High-Performance Redundant Arrays (RAID 10) - ✅ Best Choice</h4>
-                    <p><strong>Performance:</strong> Excellent</p>
-                    <p><strong>Redundancy:</strong> Multiple drive failure tolerance</p>
-                    <p><strong>Capacity:</strong> 50% of drives</p>
-                    <p><strong>Min Drives:</strong> 4</p>
-                    
-                    <div class="pros-cons">
-                        <div class="pros">
-                            <h5>✅ Optimal for Database</h5>
-                            <ul>
-                                <li><strong>Excellent read/write performance</strong></li>
-                                <li>High fault tolerance</li>
-                                <li>Fast rebuild times</li>
-                                <li>No write penalty</li>
-                                <li>Meets all requirements</li>
-                            </ul>
-                        </div>
-                        <div class="cons">
-                            <h5>⚠️ Considerations</h5>
-                            <ul>
-                                <li>50% capacity utilization</li>
-                                <li>Higher drive count required</li>
-                                <li>More expensive than RAID 5</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+            <h4>Select Data Protection Strategy</h4>
+            <div class="storage-config" id="storage-options">
+                <!-- RAID options will be randomized here -->
             </div>
 
-            <div class="alert alert-success">
-                <h4>🎯 Recommended Solution: RAID 10</h4>
-                <p><strong>Configuration:</strong> 8x 2TB SAS drives in RAID 10 configuration</p>
-                <ul>
-                    <li><strong>Usable Capacity:</strong> 8TB (exceeds 10TB requirement with compression)</li>
-                    <li><strong>Performance:</strong> Excellent for database workloads</li>
-                    <li><strong>Redundancy:</strong> Can lose up to 4 drives (one from each mirror pair)</li>
-                    <li><strong>Cost:</strong> ~$12,000 (within budget)</li>
-                </ul>
+            <div id="raid-analysis" style="display: none;">
+                <h4>Storage Configuration Analysis</h4>
+                <div id="raid-result"></div>
+                <button class="btn" onclick="configureStorage()">Configure Storage Array</button>
             </div>
 
-            <div class="knowledge-check">
-                <h3>🧠 Storage Knowledge Check</h3>
-                <div class="question-box">
-                    <p><strong>Question 1:</strong> Why is RAID 5 generally poor for write-intensive database applications?</p>
-                    <p><strong>Consider:</strong> How does parity calculation affect write operations? What is the "write penalty" in RAID 5?</p>
+            <div id="storage-config-panel" style="display: none;">
+                <h4>Storage Array Configuration</h4>
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> This will initialize the storage array and erase all data. Ensure proper backup procedures are in place.
                 </div>
                 
-                <div class="question-box">
-                    <p><strong>Question 2:</strong> In what scenarios might you choose RAID 1 over RAID 10?</p>
-                    <p><strong>Think About:</strong> Budget constraints, drive count limitations, performance requirements</p>
-                </div>
+                <button class="btn" onclick="initializeArray()">Initialize Array</button>
+                <button class="btn warning" onclick="runStorageTest()">Run Performance Test</button>
+                <button class="btn success" onclick="completeStorageSetup()">Complete Setup</button>
+                
+                <div class="simulation-log" id="storage-log"></div>
             </div>
         </div>
 
-        <!-- LO1.1.3: Maintenance Procedures -->
-        <div class="section">
-            <h2>LO1.1.3: Perform server hardware maintenance procedures</h2>
+        <!-- LO1.1.3: Maintenance Procedures Tab -->
+        <div id="maintenance" class="lab-content">
+            <h3>LO1.1.3: Perform server hardware maintenance procedures</h3>
             
-            <div class="scenario-box">
-                <h3>🔧 Scenario: Scheduled Maintenance Window</h3>
-                <p><strong>Situation:</strong> You have a 4-hour maintenance window to perform routine maintenance on production servers. Multiple servers require attention with varying priority levels.</p>
+            <div class="task-panel">
+                <h4>Scenario: Scheduled Maintenance Window</h4>
+                <p>Perform routine maintenance on production servers during a scheduled maintenance window. Follow proper procedures to ensure minimal downtime and system integrity.</p>
             </div>
 
-            <h3>Server Status Overview</h3>
-            <div class="server-grid">
-                <div class="server-card">
-                    <h4><span class="status-indicator status-online"></span>Application Server 01</h4>
-                    <p><strong>Uptime:</strong> 127 days</p>
-                    <p><strong>CPU Temp:</strong> 68°C</p>
-                    <p><strong>RAM Usage:</strong> 85%</p>
-                    <p><strong>Disk Health:</strong> Good</p>
-                    <div class="alert alert-info">
-                        <strong>Recommended Actions:</strong> Routine health check, cleaning, firmware updates<br>
-                        <strong>Downtime Impact:</strong> Medium - Load balancer will redirect traffic
-                    </div>
+            <h4>Server Status Overview</h4>
+            <div class="alert alert-info">
+                <strong>Instructions:</strong> Click on a server to view detailed status and available maintenance options.
+            </div>
+            <div class="server-rack" id="server-status-container">
+                <!-- Servers will be randomized here -->
+            </div>
+
+            <div id="server-details" style="display: none;">
+                <h4>Selected Server Details</h4>
+                <div id="server-info"></div>
+                <button class="btn" onclick="beginMaintenance()">Begin Maintenance on Selected Server</button>
+            </div>
+
+            <h4>Maintenance Tasks</h4>
+            <div class="alert alert-warning" id="maintenance-instructions">
+                <strong>Instructions:</strong> First select a server above, then click "Begin Maintenance" to unlock the maintenance tasks below.
+            </div>
+            <div class="maintenance-schedule" id="maintenance-tasks" style="opacity: 0.5; pointer-events: none;">
+                <!-- Maintenance tasks will be randomized here -->
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="maintenance-progress">0%</div>
+            </div>
+
+            <div class="simulation-log" id="maintenance-log"></div>
+
+            <div id="maintenance-results" style="display: none;">
+                <div class="alert alert-success">
+                    <strong>Maintenance Complete!</strong> All tasks have been completed successfully. Systems are ready for production use.
                 </div>
-                
-                <div class="server-card">
-                    <h4><span class="status-indicator status-maintenance"></span>Data Management Server 01</h4>
-                    <p><strong>Uptime:</strong> 89 days</p>
-                    <p><strong>CPU Temp:</strong> 72°C</p>
-                    <p><strong>RAM Usage:</strong> 92%</p>
-                    <p><strong>Disk Health:</strong> ⚠️ Warning - SMART errors detected</p>
-                    <div class="alert alert-warning">
-                        <strong>Critical Actions:</strong> Immediate disk replacement required<br>
-                        <strong>Downtime Impact:</strong> High - Database will be offline
-                    </div>
+                <button class="btn success" onclick="generateMaintenanceReport()">Generate Maintenance Report</button>
+            </div>
+        </div>
+
+        <!-- Assessment Tab -->
+        <div id="assessment" class="lab-content">
+            <h3>Competency Assessment - CC1.1</h3>
+            
+            <div class="quiz-container">
+                <div class="question">
+                    <h4>Question 1: Hardware Requirements Analysis</h4>
+                    <p>A web application requires high availability and needs to handle 5000 concurrent users with database operations. Which server configuration would be most appropriate?</p>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q1"> Budget server with basic CPU and minimal RAM
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, true)">
+                        <input type="radio" name="q1"> Performance server with multi-core CPU, adequate RAM, and redundant components
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q1"> Single-purpose server optimized only for storage
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q1"> Desktop computer with server software installed
+                    </label>
                 </div>
+
+                <div class="question">
+                    <h4>Question 2: RAID Configuration</h4>
+                    <p>For a database server requiring both high performance and fault tolerance, which RAID level provides the best balance?</p>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q2"> RAID 0 - Maximum performance, no redundancy
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, true)">
+                        <input type="radio" name="q2"> RAID 10 - High performance with redundancy
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q2"> RAID 5 - Good capacity utilization but poor write performance
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q2"> No RAID - Individual drives for maximum capacity
+                    </label>
+                </div>
+
+                <div class="question">
+                    <h4>Question 3: Maintenance Procedures</h4>
+                    <p>During server maintenance, what is the correct order of operations?</p>
+                    <label class="answer-option" onclick="selectAnswer(this, true)">
+                        <input type="radio" name="q3"> Power down → Document current state → Perform maintenance → Test functionality → Update documentation
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q3"> Perform maintenance → Power down → Test → Document
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q3"> Hot-swap components without powering down
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q3"> Test first → Maintenance → Power cycle → Document
+                    </label>
+                </div>
+
+                <button class="btn" onclick="gradeAssessment()">Submit Assessment</button>
+                <div id="assessment-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'hardware-eval';
+        let selectedServer = null;
+        let selectedServerForMaintenance = null;
+        let selectedRAID = null;
+        let installProgress = 0;
+        let maintenanceProgress = 0;
+        let completedTasks = [];
+        let assessmentAnswers = {};
+        let maintenanceEnabled = false;
+        let expectedInstallStep = 1;
+        let installAnswerCorrect = false;
+        let installComplete = false;
+        let componentOrder = [];
+        let maintenanceTaskOrder = [];
+        let serverOrder = [];
+        let storageOrder = [];
+
+        // Component definitions with randomized order and descriptive names
+        const componentDefinitions = [
+            {
+                id: 'power',
+                order: 1,
+                title: 'Electrical Infrastructure Setup',
+                description: 'Establish stable electrical foundation for all system components',
+                hint: 'Essential for energizing all other hardware elements',
+                message: '✅ Electrical infrastructure established - providing stable power distribution to all system components'
+            },
+            {
+                id: 'firmware',
+                order: 6,
+                title: 'System Configuration Interface',
+                description: 'Configure low-level system parameters and boot sequences',
+                hint: 'Requires all physical components to be present for detection',
+                message: '✅ System configuration interface optimized - boot sequences and hardware parameters configured'
+            },
+            {
+                id: 'cpu',
+                order: 2,
+                title: 'Central Processing Unit Integration',
+                description: 'Install primary computational component with thermal management',
+                hint: 'Requires accessible motherboard and thermal considerations',
+                message: '✅ Central processing unit integrated with optimal thermal management solution'
+            },
+            {
+                id: 'storage',
+                order: 4,
+                title: 'Persistent Data Repository Setup',
+                description: 'Deploy drives and data management controllers',
+                hint: 'Depends on electrical infrastructure being established',
+                message: '✅ Persistent data repositories configured with management controllers - arrays initialized'
+            },
+            {
+                id: 'memory',
+                order: 3,
+                title: 'Volatile Memory Module Installation',
+                description: 'Install high-speed temporary data storage modules',
+                hint: 'CPU must be present to determine optimal module placement',
+                message: '✅ Volatile memory modules optimally configured - POST validation successful'
+            },
+            {
+                id: 'network',
+                order: 5,
+                title: 'Communication Interface Configuration',
+                description: 'Establish external connectivity and data transmission pathways',
+                hint: 'Physical infrastructure must be complete before connectivity setup',
+                message: '✅ Communication interfaces configured - external connectivity pathways established'
+            }
+        ];
+
+        // RAID definitions with randomized descriptive names
+        const raidDefinitions = [
+            {
+                id: 'raid0',
+                title: 'Performance-Optimized Striping',
+                performance: 'Excellent',
+                redundancy: 'None',
+                capacity: '100% of drives',
+                minDrives: '2',
+                analysis: {
+                    type: 'warning',
+                    content: `
+                        <p>❌ <strong>Fatal Flaw:</strong> No redundancy - single drive failure destroys all data</p>
+                        <p>❌ Does not meet high availability requirement</p>
+                        <p>✅ Excellent performance for read/write operations</p>
+                        <p><strong>Verdict:</strong> Unsuitable for production database server</p>
+                    `
+                }
+            },
+            {
+                id: 'raid5',
+                title: 'Distributed Parity Protection',
+                performance: 'Good read, poor write',
+                redundancy: '1 drive failure',
+                capacity: '(n-1)/n of drives',
+                minDrives: '3',
+                analysis: {
+                    type: 'warning',
+                    content: `
+                        <p>✅ Good capacity utilization (n-1)/n</p>
+                        <p>✅ Tolerates single drive failure</p>
+                        <p>❌ Poor write performance due to parity calculations</p>
+                        <p>❌ Long rebuild times with large drives</p>
+                        <p><strong>Verdict:</strong> Poor choice for write-intensive database operations</p>
+                    `
+                }
+            },
+            {
+                id: 'raid1',
+                title: 'Synchronized Data Mirroring',
+                performance: 'Good read, average write',
+                redundancy: '1 drive failure',
+                capacity: '50% of drives',
+                minDrives: '2',
+                analysis: {
+                    type: 'info',
+                    content: `
+                        <p>✅ Provides data redundancy (1 drive failure tolerance)</p>
+                        <p>✅ Good read performance, average write performance</p>
+                        <p>⚠️ Only 50% capacity utilization - need 20TB raw for 10TB usable</p>
+                        <p><strong>Verdict:</strong> Good for small-scale database with limited write operations</p>
+                    `
+                }
+            },
+            {
+                id: 'raid10',
+                title: 'High-Performance Redundant Arrays',
+                performance: 'Excellent',
+                redundancy: 'Multiple drive failures',
+                capacity: '50% of drives',
+                minDrives: '4',
+                analysis: {
+                    type: 'success',
+                    content: `
+                        <p>✅ Excellent read and write performance</p>
+                        <p>✅ High fault tolerance (can lose multiple drives)</p>
+                        <p>✅ Fast rebuild times</p>
+                        <p>⚠️ 50% capacity utilization but meets performance needs</p>
+                        <p><strong>Verdict:</strong> Optimal choice for high-performance database server</p>
+                    `
+                }
+            }
+        ];
+
+        // Maintenance task definitions
+        const maintenanceDefinitions = [
+            {
+                id: 'documentation',
+                title: 'Asset Management Documentation',
+                description: 'Update system records and maintenance tracking databases',
+                priority: 'Medium',
+                time: '15 minutes',
+                message: '✅ Asset management documentation updated in tracking databases'
+            },
+            {
+                id: 'cleaning',
+                title: 'Environmental Contamination Removal',
+                description: 'Remove particulate matter from components and airflow systems',
+                priority: 'Medium',
+                time: '25 minutes',
+                message: '✅ Environmental contamination removed from all system components'
+            },
+            {
+                id: 'hardware-check',
+                title: 'Component Integrity Verification',
+                description: 'Assess component health metrics, thermal readings, and operational status',
+                priority: 'High',
+                time: '15 minutes',
+                message: '✅ Component integrity verification completed - all systems within operational parameters'
+            },
+            {
+                id: 'firmware-update',
+                title: 'Low-Level Software Updates',
+                description: 'Apply latest system firmware and controller software patches',
+                priority: 'Medium',
+                time: '30 minutes',
+                message: '✅ Low-level software updates applied - system restart required for activation'
+            },
+            {
+                id: 'cable-management',
+                title: 'Physical Connection Assessment',
+                description: 'Verify connection integrity and optimize airflow pathways',
+                priority: 'Low',
+                time: '20 minutes',
+                message: '✅ Physical connection assessment completed - airflow optimization verified'
+            },
+            {
+                id: 'disk-replacement',
+                title: 'Failed Component Replacement',
+                description: 'Replace deteriorating storage device showing error indicators',
+                priority: 'Critical',
+                time: '45 minutes',
+                message: '✅ Failed component replacement completed - array reconstruction successful'
+            }
+        ];
+
+        // Server definitions with randomized order
+        const serverDefinitions = [
+            {
+                id: 'file01',
+                title: 'Document Repository System 01',
+                status: 'offline',
+                uptime: 'Maintenance Mode',
+                cpu: '2 hours ago',
+                ram: 'Fan replacement needed',
+                disk: '30 minutes',
+                info: {
+                    type: 'success',
+                    content: `
+                        <h5>Document Repository System 01 - Selected for Maintenance</h5>
+                        <p><strong>Status:</strong> Maintenance Mode - Safe to work on</p>
+                        <p><strong>Actions:</strong> Cooling system component replacement in progress</p>
+                        <p><strong>Downtime Impact:</strong> Low - Redundant file servers available</p>
+                        <p><strong>Maintenance Window:</strong> 1 hour remaining</p>
+                    `
+                }
+            },
+            {
+                id: 'web01',
+                title: 'Application Server 01',
+                status: 'online',
+                uptime: '127 days',
+                cpu: '68°C',
+                ram: '85%',
+                disk: 'Good',
+                info: {
+                    type: 'info',
+                    content: `
+                        <h5>Application Server 01 - Selected for Maintenance</h5>
+                        <p><strong>Status:</strong> Online - Ready for maintenance</p>
+                        <p><strong>Recommended Actions:</strong> Routine health check, cleaning, firmware updates</p>
+                        <p><strong>Downtime Impact:</strong> Medium - Load balancer will redirect traffic</p>
+                        <p><strong>Maintenance Window:</strong> 2 hours allocated</p>
+                    `
+                }
+            },
+            {
+                id: 'db01',
+                title: 'Data Management Server 01',
+                status: 'maintenance',
+                uptime: '89 days',
+                cpu: '72°C',
+                ram: '92%',
+                disk: 'Warning - SMART errors',
+                info: {
+                    type: 'warning',
+                    content: `
+                        <h5>Data Management Server 01 - Selected for Maintenance</h5>
+                        <p><strong>Status:</strong> Warning - SMART errors detected</p>
+                        <p><strong>Critical Actions:</strong> Immediate disk replacement required</p>
+                        <p><strong>Downtime Impact:</strong> High - Database will be offline during maintenance</p>
+                        <p><strong>Maintenance Window:</strong> 3 hours allocated</p>
+                    `
+                }
+            }
+        ];
+
+        // Randomization functions
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        function initializeRandomizedContent() {
+            // Randomize component order
+            componentOrder = shuffleArray(componentDefinitions);
+            
+            // Randomize storage options
+            storageOrder = shuffleArray(raidDefinitions);
+            
+            // Randomize maintenance tasks
+            maintenanceTaskOrder = shuffleArray(maintenanceDefinitions);
+            
+            // Randomize server order
+            serverOrder = shuffleArray(serverDefinitions);
+            
+            // Populate components
+            populateComponents();
+            populateStorageOptions();
+            populateMaintenanceTasks();
+            populateServers();
+        }
+
+        function populateComponents() {
+            const container = document.getElementById('component-container');
+            container.innerHTML = '';
+            
+            componentOrder.forEach(component => {
+                const div = document.createElement('div');
+                div.className = 'component';
+                div.onclick = () => installComponent(div, component.id);
+                div.setAttribute('data-order', component.order);
+                div.innerHTML = `
+                    <h5>${component.title}</h5>
+                    <p>${component.description}</p>
+                    <p><small><strong>Consider:</strong> ${component.hint}</small></p>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function populateStorageOptions() {
+            const container = document.getElementById('storage-options');
+            container.innerHTML = '';
+            
+            storageOrder.forEach(storage => {
+                const div = document.createElement('div');
+                div.className = 'raid-option';
+                div.onclick = () => selectRAID(div, storage.id);
+                div.innerHTML = `
+                    <h5>${storage.title}</h5>
+                    <p><strong>Performance:</strong> ${storage.performance}</p>
+                    <p><strong>Redundancy:</strong> ${storage.redundancy}</p>
+                    <p><strong>Capacity:</strong> ${storage.capacity}</p>
+                    <p><strong>Min Drives:</strong> ${storage.minDrives}</p>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function populateMaintenanceTasks() {
+            const container = document.getElementById('maintenance-tasks');
+            container.innerHTML = '';
+            
+            maintenanceTaskOrder.forEach(task => {
+                const div = document.createElement('div');
+                div.className = 'maintenance-task';
+                div.onclick = () => performMaintenance(div, task.id);
+                div.innerHTML = `
+                    <h5>${task.title}</h5>
+                    <p>${task.description}</p>
+                    <p><strong>Priority:</strong> ${task.priority}</p>
+                    <p><strong>Estimated Time:</strong> ${task.time}</p>
+                    <p><strong>Status:</strong> <span class="task-status">Pending</span></p>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function populateServers() {
+            const container = document.getElementById('server-status-container');
+            container.innerHTML = '';
+            
+            serverOrder.forEach(server => {
+                const div = document.createElement('div');
+                div.className = 'server-unit';
+                div.onclick = () => selectServerForMaintenance(div, server.id);
                 
-                <div class="server-card">
-                    <h4><span class="status-indicator status-offline"></span>Document Repository System 01</h4>
-                    <p><strong>Status:</strong> Maintenance Mode</p>
-                    <p><strong>Last Boot:</strong> 2 hours ago</p>
-                    <p><strong>Issues:</strong> Fan replacement needed</p>
-                    <p><strong>ETA:</strong> 30 minutes</p>
+                let statusClass = 'status-' + server.status;
+                let statusContent = '';
+                
+                if (server.status === 'online') {
+                    statusContent = `
+                        <p><strong>Uptime:</strong> ${server.uptime}</p>
+                        <p><strong>CPU Temp:</strong> ${server.cpu}</p>
+                        <p><strong>RAM Usage:</strong> ${server.ram}</p>
+                        <p><strong>Disk Health:</strong> ${server.disk}</p>
+                    `;
+                } else if (server.status === 'maintenance') {
+                    statusContent = `
+                        <p><strong>Uptime:</strong> ${server.uptime}</p>
+                        <p><strong>CPU Temp:</strong> ${server.cpu}</p>
+                        <p><strong>RAM Usage:</strong> ${server.ram}</p>
+                        <p><strong>Disk Health:</strong> ${server.disk}</p>
+                    `;
+                } else {
+                    statusContent = `
+                        <p><strong>Status:</strong> ${server.uptime}</p>
+                        <p><strong>Last Boot:</strong> ${server.cpu}</p>
+                        <p><strong>Issues:</strong> ${server.ram}</p>
+                        <p><strong>ETA:</strong> ${server.disk}</p>
+                    `;
+                }
+                
+                div.innerHTML = `
+                    <h5><span class="status-indicator ${statusClass}"></span>${server.title}</h5>
+                    ${statusContent}
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // Enhanced step instructions
+        const stepInstructions = [
+            "Select the foundation component that must be addressed before any other system elements can function",
+            "Choose the primary computational element that requires direct motherboard access",
+            "Install the high-speed temporary storage that depends on the computational foundation",
+            "Configure the persistent data repositories that require electrical infrastructure",
+            "Establish the external communication pathways after physical infrastructure completion",
+            "Apply the final system-level configuration that requires all hardware components to be present"
+        ];
+
+        function showTab(tabName) {
+            document.querySelectorAll('.lab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            currentTab = tabName;
+        }
+
+        function selectServerForMaintenance(element, serverId) {
+            document.querySelectorAll('.server-unit').forEach(unit => {
+                unit.classList.remove('selected');
+            });
+            
+            element.classList.add('selected');
+            selectedServerForMaintenance = serverId;
+            
+            const detailsDiv = document.getElementById('server-details');
+            const infoDiv = document.getElementById('server-info');
+            
+            const serverInfo = serverDefinitions.find(s => s.id === serverId);
+            
+            infoDiv.innerHTML = `
+                <div class="alert alert-${serverInfo.info.type}">
+                    ${serverInfo.info.content}
+                </div>
+            `;
+            
+            detailsDiv.style.display = 'block';
+        }
+
+        function beginMaintenance() {
+            if (!selectedServerForMaintenance) {
+                alert('Please select a server first.');
+                return;
+            }
+            
+            maintenanceEnabled = true;
+            const tasksDiv = document.getElementById('maintenance-tasks');
+            const instructionsDiv = document.getElementById('maintenance-instructions');
+            
+            tasksDiv.style.opacity = '1';
+            tasksDiv.style.pointerEvents = 'auto';
+            
+            instructionsDiv.innerHTML = `
+                <strong>Maintenance Active:</strong> You can now click on maintenance tasks below to perform them. 
+                Complete all tasks to finish the maintenance procedure.
+            `;
+            instructionsDiv.className = 'alert alert-success';
+            
+            logMaintenance(`🔧 Beginning maintenance on ${selectedServerForMaintenance.toUpperCase()}`);
+            logMaintenance('Maintenance tasks are now available. Click on tasks to complete them.');
+        }
+
+        function selectServer(element, serverType) {
+            document.querySelectorAll('.server-unit').forEach(unit => {
+                unit.classList.remove('selected');
+            });
+            
+            element.classList.add('selected');
+            selectedServer = serverType;
+            
+            const analysisDiv = document.getElementById('server-analysis');
+            const resultDiv = document.getElementById('analysis-result');
+            
+            let analysis = '';
+            switch(serverType) {
+                case 'budget':
+                    analysis = `
+                        <div class="alert alert-warning">
+                            <strong>Analysis:</strong> Budget server may not meet performance requirements for 1000 concurrent users.
+                            <ul>
+                                <li>❌ CPU cores insufficient for high load</li>
+                                <li>❌ RAM may cause performance bottlenecks</li>
+                                <li>❌ Storage configuration lacks redundancy</li>
+                                <li>✅ Cost-effective for light workloads</li>
+                            </ul>
+                            <strong>Recommendation:</strong> Consider upgrading for production environment.
+                        </div>
+                    `;
+                    break;
+                case 'performance':
+                    analysis = `
+                        <div class="alert alert-success">
+                            <strong>Analysis:</strong> Performance server meets requirements for the specified workload.
+                            <ul>
+                                <li>✅ Adequate CPU cores for concurrent users</li>
+                                <li>✅ Sufficient RAM for database operations</li>
+                                <li>✅ Hybrid storage provides good performance</li>
+                                <li>✅ Network capacity supports expected traffic</li>
+                            </ul>
+                            <strong>Recommendation:</strong> Optimal choice for this deployment.
+                        </div>
+                    `;
+                    break;
+                case 'enterprise':
+                    analysis = `
+                        <div class="alert alert-info">
+                            <strong>Analysis:</strong> Enterprise server exceeds requirements but provides excellent scalability.
+                            <ul>
+                                <li>✅ High-performance dual CPUs handle heavy workloads</li>
+                                <li>✅ Large RAM capacity supports future growth</li>
+                                <li>✅ Enterprise storage with NVMe performance</li>
+                                <li>⚠️ Higher cost may exceed budget requirements</li>
+                            </ul>
+                            <strong>Recommendation:</strong> Future-proof solution if budget allows.
+                        </div>
+                    `;
+                    break;
+            }
+            
+            resultDiv.innerHTML = analysis;
+            analysisDiv.style.display = 'block';
+        }
+
+        function proceedToInstallation() {
+            document.getElementById('installation-planning').style.display = 'block';
+            logInstallation('Starting server installation procedure...');
+        }
+
+        function installComponent(element, componentType) {
+            if (element.classList.contains('installed')) {
+                logInstallation('⚠️ Component already installed.');
+                return;
+            }
+            
+            const component = componentDefinitions.find(c => c.id === componentType);
+            const componentOrder = component.order;
+            
+            if (componentOrder !== expectedInstallStep) {
+                element.style.border = '3px solid #dc3545';
+                element.style.background = '#f8d7da';
+                
+                let correctNext = componentDefinitions.find(c => c.order === expectedInstallStep);
+                
+                logInstallation(`❌ INCORRECT ORDER: ${component.title} cannot be installed at this step.`);
+                logInstallation(`⚠️ You must complete ${correctNext.title} first (Step ${expectedInstallStep}).`);
+                logInstallation('📚 Proper installation sequence prevents damage and ensures functionality.');
+                
+                setTimeout(() => {
+                    element.style.border = '';
+                    element.style.background = '';
+                }, 2000);
+                return;
+            }
+            
+            element.classList.add('installed');
+            element.style.border = '3px solid #28a745';
+            installProgress += 16.67;
+            expectedInstallStep++;
+            
+            const progressBar = document.getElementById('install-progress');
+            progressBar.style.width = Math.round(installProgress) + '%';
+            progressBar.textContent = Math.round(installProgress) + '%';
+            
+            logInstallation(component.message);
+            
+            const stepInstruction = document.getElementById('step-instruction');
+            if (expectedInstallStep <= 6) {
+                stepInstruction.textContent = stepInstructions[expectedInstallStep - 1];
+            } else {
+                stepInstruction.textContent = 'All components installed - ready for knowledge verification';
+                document.getElementById('current-step').className = 'alert alert-success';
+            }
+            
+            if (installProgress >= 100) {
+                logInstallation('');
+                logInstallation('🎉 Hardware installation completed in correct sequence!');
+                logInstallation('⚡ System ready for POST (Power-On Self Test)');
+                logInstallation('📋 Proceeding to installation knowledge verification...');
+                
+                setTimeout(() => {
+                    document.getElementById('installation-quiz').style.display = 'block';
+                    updateInstallQuestion();
+                }, 1500);
+            }
+        }
+
+        function updateInstallQuestion() {
+            const questions = [
+                {
+                    question: "Why must electrical infrastructure be established before other components?",
+                    answers: [
+                        { text: "Components are too heavy to install first", correct: false },
+                        { text: "All system elements require stable power to function safely", correct: true },
+                        { text: "Electrical systems need the most mounting hardware", correct: false },
+                        { text: "Power systems generate the most operational heat", correct: false }
+                    ]
+                },
+                {
+                    question: "What is the most critical consideration when installing processing components?",
+                    answers: [
+                        { text: "Apply maximum pressure to ensure contact", correct: false },
+                        { text: "Apply thermal interface material and ensure proper cooling", correct: true },
+                        { text: "Install memory first to test compatibility", correct: false },
+                        { text: "Connect power cables before seating processor", correct: false }
+                    ]
+                },
+                {
+                    question: "Why should system configuration be performed after all hardware installation?",
+                    answers: [
+                        { text: "It requires the least technical expertise", correct: false },
+                        { text: "All hardware must be present for proper detection and optimization", correct: true },
+                        { text: "Configuration can be completed remotely", correct: false },
+                        { text: "Firmware settings don't affect system performance", correct: false }
+                    ]
+                }
+            ];
+            
+            const randomQ = questions[Math.floor(Math.random() * questions.length)];
+            const questionElement = document.getElementById('install-question');
+            questionElement.textContent = randomQ.question;
+            
+            const optionsContainer = document.getElementById('quiz-options');
+            optionsContainer.innerHTML = '';
+            
+            randomQ.answers.forEach((answer, index) => {
+                const label = document.createElement('label');
+                label.className = 'answer-option';
+                label.onclick = () => selectInstallAnswer(label, answer.correct);
+                label.innerHTML = `
+                    <input type="radio" name="install-q"> ${answer.text}
+                `;
+                optionsContainer.appendChild(label);
+            });
+        }
+
+        function selectInstallAnswer(element, isCorrect) {
+            document.querySelectorAll('#quiz-options .answer-option').forEach(option => {
+                option.classList.remove('correct', 'incorrect');
+                option.style.pointerEvents = 'none';
+            });
+            
+            element.querySelector('input').checked = true;
+            installAnswerCorrect = isCorrect;
+            
+            if (isCorrect) {
+                element.classList.add('correct');
+            } else {
+                element.classList.add('incorrect');
+            }
+            
+            document.getElementById('submit-install-btn').disabled = false;
+        }
+
+        function submitInstallAnswer() {
+            const feedbackDiv = document.getElementById('install-feedback');
+            
+            if (installAnswerCorrect) {
+                feedbackDiv.innerHTML = `
                     <div class="alert alert-success">
-                        <strong>Status:</strong> Maintenance in progress - Safe to work on<br>
-                        <strong>Downtime Impact:</strong> Low - Redundant systems available
+                        <strong>Correct!</strong> You understand proper installation procedures. 
+                        The server hardware installation is complete and ready for OS deployment.
                     </div>
-                </div>
-            </div>
+                `;
+                logInstallation('✅ Knowledge verification passed - installation procedure mastered');
+                logInstallation('🚀 Server ready for operating system installation');
+                installComplete = true;
+            } else {
+                feedbackDiv.innerHTML = `
+                    <div class="alert alert-warning">
+                        <strong>Incorrect.</strong> Review installation best practices. 
+                        Proper procedures prevent hardware damage and ensure reliability.
+                        <br><br>
+                        <button class="btn warning" onclick="retryInstallQuestion()">Try Another Question</button>
+                    </div>
+                `;
+                logInstallation('❌ Knowledge verification failed - review installation procedures');
+            }
+        }
 
-            <h3>Maintenance Task Priority Matrix</h3>
-            <div class="maintenance-grid">
-                <div class="maintenance-card priority-critical">
-                    <h4>🔴 CRITICAL: Failed Component Replacement</h4>
-                    <p><strong>Description:</strong> Replace deteriorating storage device showing SMART error indicators in Data Management Server 01</p>
-                    <p><strong>Estimated Time:</strong> 45 minutes</p>
-                    <p><strong>Impact:</strong> Database service interruption</p>
-                    <div class="checklist">
-                        <h5>Procedure Checklist:</h5>
-                        <ul>
-                            <li>Verify RAID array status and backup integrity</li>
-                            <li>Notify users of planned database downtime</li>
-                            <li>Hot-swap failed drive (if supported)</li>
-                            <li>Monitor array rebuild progress</li>
-                            <li>Verify data integrity post-rebuild</li>
-                        </ul>
-                    </div>
+        function retryInstallQuestion() {
+            document.getElementById('install-feedback').innerHTML = '';
+            document.getElementById('submit-install-btn').disabled = true;
+            updateInstallQuestion();
+        }
+
+        function logInstallation(message) {
+            const log = document.getElementById('install-log');
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `[${timestamp}] ${message}\n`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function selectRAID(element, raidType) {
+            document.querySelectorAll('.raid-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            element.classList.add('selected');
+            selectedRAID = raidType;
+            
+            const analysisDiv = document.getElementById('raid-analysis');
+            const resultDiv = document.getElementById('raid-result');
+            
+            const raidInfo = raidDefinitions.find(r => r.id === raidType);
+            
+            resultDiv.innerHTML = `
+                <div class="alert alert-${raidInfo.analysis.type}">
+                    <strong>${raidInfo.title} Analysis:</strong>
+                    ${raidInfo.analysis.content}
+                </div>
+            `;
+            
+            analysisDiv.style.display = 'block';
+        }
+
+        function configureStorage() {
+            document.getElementById('storage-config-panel').style.display = 'block';
+            logStorage('Storage configuration panel opened...');
+        }
+
+        function initializeArray() {
+            logStorage('⚠️ WARNING: Initializing storage array...');
+            logStorage('Creating partitions and formatting drives...');
+            setTimeout(() => {
+                logStorage('✅ Array initialization completed successfully');
+                logStorage(`${selectedRAID.toUpperCase()} array created with optimized drive configuration`);
+            }, 2000);
+        }
+
+        function runStorageTest() {
+            logStorage('Running storage performance benchmarks...');
+            logStorage('Sequential Read Test: 850 MB/s');
+            logStorage('Sequential Write Test: 720 MB/s');
+            logStorage('Random Read IOPS: 15,000');
+            logStorage('Random Write IOPS: 12,000');
+            logStorage('✅ Performance benchmarks completed - results within expected parameters');
+        }
+
+        function completeStorageSetup() {
+            logStorage('Finalizing storage deployment...');
+            logStorage('Configuring monitoring and alert systems...');
+            logStorage('✅ Storage deployment completed successfully!');
+            logStorage('Array is ready for production operations.');
+        }
+
+        function logStorage(message) {
+            const log = document.getElementById('storage-log');
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `[${timestamp}] ${message}\n`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function performMaintenance(element, taskType) {
+            if (!maintenanceEnabled) {
+                alert('Please select a server and click "Begin Maintenance" first.');
+                return;
+            }
+            
+            if (element.classList.contains('completed')) {
+                logMaintenance(`⚠️ Task "${taskType}" already completed.`);
+                return;
+            }
+            
+            element.classList.add('completed');
+            const statusSpan = element.querySelector('.task-status');
+            statusSpan.textContent = 'Completed';
+            statusSpan.style.color = '#28a745';
+            statusSpan.style.fontWeight = 'bold';
+            
+            completedTasks.push(taskType);
+            maintenanceProgress = (completedTasks.length / 6) * 100;
+            
+            const progressBar = document.getElementById('maintenance-progress');
+            progressBar.style.width = maintenanceProgress + '%';
+            progressBar.textContent = Math.round(maintenanceProgress) + '%';
+            
+            const task = maintenanceDefinitions.find(t => t.id === taskType);
+            logMaintenance(`${task.message} (${task.time})`);
+            
+            if (completedTasks.length === 6) {
+                logMaintenance('');
+                logMaintenance('🎉 All maintenance procedures completed successfully!');
+                logMaintenance('Systems are ready to return to production status.');
+                logMaintenance('Total maintenance duration: 2.5 hours');
+                document.getElementById('maintenance-results').style.display = 'block';
+            }
+        }
+
+        function logMaintenance(message) {
+            const log = document.getElementById('maintenance-log');
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `[${timestamp}] ${message}\n`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function generateMaintenanceReport() {
+            logMaintenance('');
+            logMaintenance('=== MAINTENANCE REPORT ===');
+            logMaintenance('Maintenance Window: ' + new Date().toLocaleDateString());
+            logMaintenance('Duration: 2.5 hours');
+            logMaintenance('Tasks Completed: 6/6');
+            logMaintenance('Systems Status: All Online');
+            logMaintenance('Next Scheduled Maintenance: ' + new Date(Date.now() + 30*24*60*60*1000).toLocaleDateString());
+            logMaintenance('Report generated and distributed to management.');
+        }
+
+        function selectAnswer(element, isCorrect) {
+            const questionName = element.querySelector('input').name;
+            
+            document.querySelectorAll(`input[name="${questionName}"]`).forEach(input => {
+                input.closest('.answer-option').classList.remove('correct', 'incorrect');
+            });
+            
+            assessmentAnswers[questionName] = isCorrect;
+            
+            if (isCorrect) {
+                element.classList.add('correct');
+            } else {
+                element.classList.add('incorrect');
+            }
+        }
+
+        function gradeAssessment() {
+            const totalQuestions = 3;
+            const correctAnswers = Object.values(assessmentAnswers).filter(answer => answer === true).length;
+            const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+            
+            let grade = '';
+            let feedback = '';
+            
+            if (percentage >= 90) {
+                grade = 'Excellent (A)';
+                feedback = 'Outstanding performance! You demonstrate mastery of server hardware installation and maintenance concepts.';
+            } else if (percentage >= 80) {
+                grade = 'Good (B)';
+                feedback = 'Good understanding of the material. Review areas where incorrect answers were selected.';
+            } else if (percentage >= 70) {
+                grade = 'Satisfactory (C)';
+                feedback = 'Basic understanding demonstrated. Additional study recommended for production environment readiness.';
+            } else {
+                grade = 'Needs Improvement';
+                feedback = 'Significant gaps in understanding. Please review course materials and retake assessment.';
+            }
+            
+            const resultsDiv = document.getElementById('assessment-results');
+            resultsDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <h4>Assessment Results</h4>
+                    <p><strong>Score:</strong> ${correctAnswers}/${totalQuestions} (${percentage}%)</p>
+                    <p><strong>Grade:</strong> ${grade}</p>
+                    <p><strong>Feedback:</strong> ${feedback}</p>
                 </div>
                 
-                <div class="maintenance-card priority-high">
-                    <h4>🟠 HIGH: Component Integrity Verification</h4>
-                    <p><strong>Description:</strong> Assess component health metrics, thermal readings, and operational status across all servers</p>
-                    <p><strong>Estimated Time:</strong> 15 minutes per server</p
+                <div class="alert alert-success">
+                    <h4>Competency Evaluation - CC1.1</h4>
+                    <p><strong>LO1.1.1:</strong> ${assessmentAnswers.q1 ? '✅ Proficient' : '❌ Needs Development'} - Hardware Requirements Evaluation</p>
+                    <p><strong>LO1.1.2:</strong> ${assessmentAnswers.q2 ? '✅ Proficient' : '❌ Needs Development'} - Storage Solutions Deployment</p>
+                    <p><strong>LO1.1.3:</strong> ${assessmentAnswers.q3 ? '✅ Proficient' : '❌ Needs Development'} - Maintenance Procedures</p>
+                </div>
+            `;
+        }
+
+        // Initialize the lab
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeRandomizedContent();
+            logInstallation('Virtual Server Hardware Lab initialized successfully.');
+            logInstallation('Ready to begin hardware evaluation procedures.');
+        });
+    </script>
+</body>
+</html>

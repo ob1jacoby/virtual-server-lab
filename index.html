@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Server Hardware Lab - CC1.1 (Canvas Version)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .section h2 {
+            color: #1e3c72;
+            border-bottom: 3px solid #ff6b35;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .scenario-box {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        .server-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .server-card {
+            background: #f8f9fa;
+            border: 3px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .server-card.recommended {
+            border-color: #28a745;
+            background: #e8f5e8;
+        }
+        
+        .server-card.not-recommended {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        
+        .server-card.over-spec {
+            border-color: #ffc107;
+            background: #fff3cd;
+        }
+        
+        .component-sequence {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .component-step {
+            background: linear-gradient(145deg, #f0f0f0, #e0e0e0);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .step-number {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            background: #ff6b35;
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .component-step h4 {
+            color: #1e3c72;
+            margin-bottom: 10px;
+        }
+        
+        .storage-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .storage-card {
+            background: white;
+            border: 3px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .storage-card.best-choice {
+            border-color: #28a745;
+            background: #e8f5e8;
+        }
+        
+        .storage-card.poor-choice {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        
+        .storage-card.acceptable {
+            border-color: #17a2b8;
+            background: #d1ecf1;
+        }
+        
+        .maintenance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .maintenance-card {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .priority-critical {
+            border-left: 6px solid #dc3545;
+        }
+        
+        .priority-high {
+            border-left: 6px solid #fd7e14;
+        }
+        
+        .priority-medium {
+            border-left: 6px solid #ffc107;
+        }
+        
+        .priority-low {
+            border-left: 6px solid #28a745;
+        }
+        
+        .alert {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        
+        .alert-warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            border-color: #17a2b8;
+            color: #0c5460;
+        }
+        
+        .alert-danger {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        
+        .knowledge-check {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 2px solid #007bff;
+        }
+        
+        .question-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #007bff;
+        }
+        
+        .pros-cons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 15px 0;
+        }
+        
+        .pros {
+            background: #d4edda;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+        }
+        
+        .cons {
+            background: #f8d7da;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .checklist {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .checklist ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .checklist li {
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .checklist li:before {
+            content: "☐ ";
+            font-weight: bold;
+            color: #007bff;
+            margin-right: 8px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online { background: #28a745; }
+        .status-offline { background: #dc3545; }
+        .status-maintenance { background: #ffc107; }
+        
+        .reflection-box {
+            background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+        
+        @media (max-width: 768px) {
+            .pros-cons {
+                grid-template-columns: 1fr;
+            }
+            
+            .server-grid,
+            .storage-options,
+            .maintenance-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Virtual Server Hardware Laboratory</h1>
+            <h2>CC1.1: Install and maintain physical server hardware components</h2>
+            <p>Educational guide covering hardware evaluation, storage deployment, and maintenance procedures</p>
+        </div>
+
+        <!-- LO1.1.1: Hardware Evaluation -->
+        <div class="section">
+            <h2>LO1.1.1: Evaluate server hardware requirements including installation procedure</h2>
+            
+            <div class="scenario-box">
+                <h3>📋 Scenario: Small Business Web Server Deployment</h3>
+                <p><strong>Requirements:</strong> Your organization needs a new web server to handle <strong>1000 concurrent users</strong>, host a database, and provide file sharing services.</p>
+                <p><strong>Your Task:</strong> Evaluate hardware requirements and plan the installation sequence.</p>
+            </div>
+
+            <h3>Available Server Configurations</h3>
+            <div class="server-grid">
+                <div class="server-card not-recommended">
+                    <h4>Budget Server (1U) - ❌ Not Recommended</h4>
+                    <p><strong>CPU:</strong> Intel Xeon E-2234 (4 cores, 3.6GHz)</p>
+                    <p><strong>RAM:</strong> 16GB DDR4</p>
+                    <p><strong>Storage:</strong> 2x 1TB SATA HDD</p>
+                    <p><strong>Network:</strong> 2x 1GbE</p>
+                    <p><strong>Price:</strong> $2,500</p>
+                    
+                    <div class="alert alert-danger">
+                        <strong>Analysis:</strong> Insufficient for 1000 concurrent users
+                        <ul>
+                            <li>❌ CPU cores insufficient for high load</li>
+                            <li>❌ RAM will cause performance bottlenecks</li>
+                            <li>❌ Storage lacks redundancy</li>
+                            <li>❌ Network capacity inadequate</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="server-card recommended">
+                    <h4>Performance Server (2U) - ✅ Recommended Choice</h4>
+                    <p><strong>CPU:</strong> Intel Xeon Silver 4214 (12 cores, 2.2GHz)</p>
+                    <p><strong>RAM:</strong> 64GB DDR4</p>
+                    <p><strong>Storage:</strong> 4x 2TB SAS HDD + 2x 500GB SSD</p>
+                    <p><strong>Network:</strong> 4x 1GbE + 2x 10GbE</p>
+                    <p><strong>Price:</strong> $8,500</p>
+                    
+                    <div class="alert alert-success">
+                        <strong>Analysis:</strong> Optimal for specified requirements
+                        <ul>
+                            <li>✅ Adequate CPU cores for concurrent users</li>
+                            <li>✅ Sufficient RAM for database operations</li>
+                            <li>✅ Hybrid storage provides performance + capacity</li>
+                            <li>✅ Network capacity supports expected traffic</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="server-card over-spec">
+                    <h4>Enterprise Server (4U) - ⚠️ Over-Specified</h4>
+                    <p><strong>CPU:</strong> 2x Intel Xeon Gold 6248 (20 cores each, 2.5GHz)</p>
+                    <p><strong>RAM:</strong> 256GB DDR4</p>
+                    <p><strong>Storage:</strong> 8x 4TB SAS HDD + 4x 1TB NVMe SSD</p>
+                    <p><strong>Network:</strong> 4x 10GbE + 2x 25GbE</p>
+                    <p><strong>Price:</strong> $25,000</p>
+                    
+                    <div class="alert alert-warning">
+                        <strong>Analysis:</strong> Exceeds requirements but future-proof
+                        <ul>
+                            <li>✅ High-performance dual CPUs</li>
+                            <li>✅ Massive RAM for future growth</li>
+                            <li>✅ Enterprise-grade storage performance</li>
+                            <li>⚠️ Significantly over budget for current needs</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Proper Installation Sequence</h3>
+            <div class="alert alert-info">
+                <strong>Critical:</strong> Components must be installed in the correct order to prevent damage and ensure functionality.
+            </div>
+            
+            <div class="component-sequence">
+                <div class="component-step">
+                    <div class="step-number">1</div>
+                    <h4>Electrical Infrastructure Setup</h4>
+                    <p><strong>Why First:</strong> All other components require stable power to function safely</p>
+                    <p><strong>Tasks:</strong> Install redundant power supplies, verify voltage stability</p>
+                </div>
+                
+                <div class="component-step">
+                    <div class="step-number">2</div>
+                    <h4>Central Processing Unit Integration</h4>
+                    <p><strong>Why Second:</strong> Requires direct motherboard access before other components</p>
+                    <p><strong>Tasks:</strong> Install CPU(s), apply thermal paste, mount cooling systems</p>
+                </div>
+                
+                <div class="component-step">
+                    <div class="step-number">3</div>
+                    <h4>Volatile Memory Module Installation</h4>
+                    <p><strong>Why Third:</strong> CPU must be present to determine optimal memory configuration</p>
+                    <p><strong>Tasks:</strong> Install RAM in proper DIMM slots, verify POST compatibility</p>
+                </div>
+                
+                <div class="component-step">
+                    <div class="step-number">4</div>
+                    <h4>Persistent Data Repository Setup</h4>
+                    <p><strong>Why Fourth:</strong> Requires stable power connections established in step 1</p>
+                    <p><strong>Tasks:</strong> Install drives, configure RAID controllers, initialize arrays</p>
+                </div>
+                
+                <div class="component-step">
+                    <div class="step-number">5</div>
+                    <h4>Communication Interface Configuration</h4>
+                    <p><strong>Why Fifth:</strong> Physical infrastructure must be complete before connectivity</p>
+                    <p><strong>Tasks:</strong> Configure network interfaces, establish cable connections</p>
+                </div>
+                
+                <div class="component-step">
+                    <div class="step-number">6</div>
+                    <h4>System Configuration Interface</h4>
+                    <p><strong>Why Last:</strong> All hardware must be present for proper detection and optimization</p>
+                    <p><strong>Tasks:</strong> Configure BIOS/UEFI settings, optimize boot sequences</p>
+                </div>
+            </div>
+
+            <div class="knowledge-check">
+                <h3>🧠 Knowledge Check Questions</h3>
+                <div class="question-box">
+                    <p><strong>Question 1:</strong> Why must electrical infrastructure be established before installing other components?</p>
+                    <p><strong>Think About:</strong> What happens if you try to test components without stable power? What are the risks of power fluctuations during installation?</p>
+                </div>
+                
+                <div class="question-box">
+                    <p><strong>Question 2:</strong> What could happen if you install memory modules before the CPU is properly seated?</p>
+                    <p><strong>Consider:</strong> How does the CPU determine optimal memory configuration? What compatibility issues might arise?</p>
+                </div>
+                
+                <div class="question-box">
+                    <p><strong>Question 3:</strong> Why is system configuration (BIOS/UEFI) performed last in the installation sequence?</p>
+                    <p><strong>Analyze:</strong> What hardware detection processes occur during firmware configuration? What happens if components are added after firmware setup?</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- LO1.1.2: Storage Solutions -->
+        <div class="section">
+            <h2>LO1.1.2: Deploy appropriate storage solutions based on organizational needs</h2>
+            
+            <div class="scenario-box">
+                <h3>💾 Scenario: Database Server Storage Design</h3>
+                <p><strong>Requirements:</strong> Design storage for a database server requiring:</p>
+                <ul>
+                    <li>High availability (99.9% uptime)</li>
+                    <li>Fast read/write performance for database operations</li>
+                    <li>Data redundancy and fault tolerance</li>
+                    <li>Capacity: 10TB usable storage</li>
+                    <li>Budget: $15,000 for storage subsystem</li>
+                </ul>
+            </div>
+
+            <h3>Data Protection Strategy Options</h3>
+            <div class="storage-options">
+                <div class="storage-card poor-choice">
+                    <h4>Performance-Optimized Striping (RAID 0) - ❌ Poor Choice</h4>
+                    <p><strong>Performance:</strong> Excellent</p>
+                    <p><strong>Redundancy:</strong> None</p>
+                    <p><strong>Capacity:</strong> 100% of drives</p>
+                    <p><strong>Min Drives:</strong> 2</p>
+                    
+                    <div class="pros-cons">
+                        <div class="pros">
+                            <h5>✅ Advantages</h5>
+                            <ul>
+                                <li>Maximum performance</li>
+                                <li>Full capacity utilization</li>
+                                <li>Simple configuration</li>
+                            </ul>
+                        </div>
+                        <div class="cons">
+                            <h5>❌ Critical Flaws</h5>
+                            <ul>
+                                <li><strong>No redundancy</strong> - single drive failure destroys all data</li>
+                                <li>Does not meet availability requirement</li>
+                                <li>Unsuitable for production databases</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="storage-card acceptable">
+                    <h4>Synchronized Data Mirroring (RAID 1) - ⚠️ Acceptable</h4>
+                    <p><strong>Performance:</strong> Good read, average write</p>
+                    <p><strong>Redundancy:</strong> 1 drive failure tolerance</p>
+                    <p><strong>Capacity:</strong> 50% of drives</p>
+                    <p><strong>Min Drives:</strong> 2</p>
+                    
+                    <div class="pros-cons">
+                        <div class="pros">
+                            <h5>✅ Advantages</h5>
+                            <ul>
+                                <li>Simple redundancy</li>
+                                <li>Good read performance</li>
+                                <li>Fast recovery</li>
+                            </ul>
+                        </div>
+                        <div class="cons">
+                            <h5>⚠️ Limitations</h5>
+                            <ul>
+                                <li>Only 50% capacity utilization</li>
+                                <li>Average write performance</li>
+                                <li>Need 20TB raw for 10TB usable</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="storage-card poor-choice">
+                    <h4>Distributed Parity Protection (RAID 5) - ❌ Poor for Database</h4>
+                    <p><strong>Performance:</strong> Good read, poor write</p>
+                    <p><strong>Redundancy:</strong> 1 drive failure tolerance</p>
+                    <p><strong>Capacity:</strong> (n-1)/n of drives</p>
+                    <p><strong>Min Drives:</strong> 3</p>
+                    
+                    <div class="pros-cons">
+                        <div class="pros">
+                            <h5>✅ Advantages</h5>
+                            <ul>
+                                <li>Good capacity utilization</li>
+                                <li>Fault tolerance</li>
+                                <li>Cost-effective</li>
+                            </ul>
+                        </div>
+                        <div class="cons">
+                            <h5>❌ Database Issues</h5>
+                            <ul>
+                                <li><strong>Poor write performance</strong> due to parity calculations</li>
+                                <li>Long rebuild times with large drives</li>
+                                <li>Write penalty affects database operations</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="storage-card best-choice">
+                    <h4>High-Performance Redundant Arrays (RAID 10) - ✅ Best Choice</h4>
+                    <p><strong>Performance:</strong> Excellent</p>
+                    <p><strong>Redundancy:</strong> Multiple drive failure tolerance</p>
+                    <p><strong>Capacity:</strong> 50% of drives</p>
+                    <p><strong>Min Drives:</strong> 4</p>
+                    
+                    <div class="pros-cons">
+                        <div class="pros">
+                            <h5>✅ Optimal for Database</h5>
+                            <ul>
+                                <li><strong>Excellent read/write performance</strong></li>
+                                <li>High fault tolerance</li>
+                                <li>Fast rebuild times</li>
+                                <li>No write penalty</li>
+                                <li>Meets all requirements</li>
+                            </ul>
+                        </div>
+                        <div class="cons">
+                            <h5>⚠️ Considerations</h5>
+                            <ul>
+                                <li>50% capacity utilization</li>
+                                <li>Higher drive count required</li>
+                                <li>More expensive than RAID 5</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-success">
+                <h4>🎯 Recommended Solution: RAID 10</h4>
+                <p><strong>Configuration:</strong> 8x 2TB SAS drives in RAID 10 configuration</p>
+                <ul>
+                    <li><strong>Usable Capacity:</strong> 8TB (exceeds 10TB requirement with compression)</li>
+                    <li><strong>Performance:</strong> Excellent for database workloads</li>
+                    <li><strong>Redundancy:</strong> Can lose up to 4 drives (one from each mirror pair)</li>
+                    <li><strong>Cost:</strong> ~$12,000 (within budget)</li>
+                </ul>
+            </div>
+
+            <div class="knowledge-check">
+                <h3>🧠 Storage Knowledge Check</h3>
+                <div class="question-box">
+                    <p><strong>Question 1:</strong> Why is RAID 5 generally poor for write-intensive database applications?</p>
+                    <p><strong>Consider:</strong> How does parity calculation affect write operations? What is the "write penalty" in RAID 5?</p>
+                </div>
+                
+                <div class="question-box">
+                    <p><strong>Question 2:</strong> In what scenarios might you choose RAID 1 over RAID 10?</p>
+                    <p><strong>Think About:</strong> Budget constraints, drive count limitations, performance requirements</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- LO1.1.3: Maintenance Procedures -->
+        <div class="section">
+            <h2>LO1.1.3: Perform server hardware maintenance procedures</h2>
+            
+            <div class="scenario-box">
+                <h3>🔧 Scenario: Scheduled Maintenance Window</h3>
+                <p><strong>Situation:</strong> You have a 4-hour maintenance window to perform routine maintenance on production servers. Multiple servers require attention with varying priority levels.</p>
+            </div>
+
+            <h3>Server Status Overview</h3>
+            <div class="server-grid">
+                <div class="server-card">
+                    <h4><span class="status-indicator status-online"></span>Application Server 01</h4>
+                    <p><strong>Uptime:</strong> 127 days</p>
+                    <p><strong>CPU Temp:</strong> 68°C</p>
+                    <p><strong>RAM Usage:</strong> 85%</p>
+                    <p><strong>Disk Health:</strong> Good</p>
+                    <div class="alert alert-info">
+                        <strong>Recommended Actions:</strong> Routine health check, cleaning, firmware updates<br>
+                        <strong>Downtime Impact:</strong> Medium - Load balancer will redirect traffic
+                    </div>
+                </div>
+                
+                <div class="server-card">
+                    <h4><span class="status-indicator status-maintenance"></span>Data Management Server 01</h4>
+                    <p><strong>Uptime:</strong> 89 days</p>
+                    <p><strong>CPU Temp:</strong> 72°C</p>
+                    <p><strong>RAM Usage:</strong> 92%</p>
+                    <p><strong>Disk Health:</strong> ⚠️ Warning - SMART errors detected</p>
+                    <div class="alert alert-warning">
+                        <strong>Critical Actions:</strong> Immediate disk replacement required<br>
+                        <strong>Downtime Impact:</strong> High - Database will be offline
+                    </div>
+                </div>
+                
+                <div class="server-card">
+                    <h4><span class="status-indicator status-offline"></span>Document Repository System 01</h4>
+                    <p><strong>Status:</strong> Maintenance Mode</p>
+                    <p><strong>Last Boot:</strong> 2 hours ago</p>
+                    <p><strong>Issues:</strong> Fan replacement needed</p>
+                    <p><strong>ETA:</strong> 30 minutes</p>
+                    <div class="alert alert-success">
+                        <strong>Status:</strong> Maintenance in progress - Safe to work on<br>
+                        <strong>Downtime Impact:</strong> Low - Redundant systems available
+                    </div>
+                </div>
+            </div>
+
+            <h3>Maintenance Task Priority Matrix</h3>
+            <div class="maintenance-grid">
+                <div class="maintenance-card priority-critical">
+                    <h4>🔴 CRITICAL: Failed Component Replacement</h4>
+                    <p><strong>Description:</strong> Replace deteriorating storage device showing SMART error indicators in Data Management Server 01</p>
+                    <p><strong>Estimated Time:</strong> 45 minutes</p>
+                    <p><strong>Impact:</strong> Database service interruption</p>
+                    <div class="checklist">
+                        <h5>Procedure Checklist:</h5>
+                        <ul>
+                            <li>Verify RAID array status and backup integrity</li>
+                            <li>Notify users of planned database downtime</li>
+                            <li>Hot-swap failed drive (if supported)</li>
+                            <li>Monitor array rebuild progress</li>
+                            <li>Verify data integrity post-rebuild</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="maintenance-card priority-high">
+                    <h4>🟠 HIGH: Component Integrity Verification</h4>
+                    <p><strong>Description:</strong> Assess component health metrics, thermal readings, and operational status across all servers</p>
+                    <p><strong>Estimated Time:</strong> 15 minutes per server</p

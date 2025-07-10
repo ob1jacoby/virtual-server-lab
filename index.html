@@ -1,17 +1,851 @@
-<button class="btn success" onclick="exportFinalGrade()" style="margin-top: 15px;">Export Final Grade</button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Server Hardware Lab - CC1.1 (Graded)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .grade-tracker {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            min-width: 200px;
+        }
+        
+        .grade-tracker h4 {
+            color: #1e3c72;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #ff6b35;
+            padding-bottom: 5px;
+        }
+        
+        .grade-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 3px 0;
+        }
+        
+        .grade-item.completed {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .grade-item.failed {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .total-grade {
+            border-top: 2px solid #1e3c72;
+            margin-top: 10px;
+            padding-top: 8px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .passing-status {
+            margin-top: 8px;
+            padding: 5px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .passing-status.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .passing-status.fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .export-grade {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        
+        .export-grade:hover {
+            background: #1e7e34;
+        }
+        
+        .lab-tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .tab-btn {
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            color: #1e3c72;
+            position: relative;
+        }
+        
+        .tab-btn:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .tab-btn.active {
+            background: #ff6b35;
+            color: white;
+        }
+        
+        .tab-btn.completed::after {
+            content: "✓";
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #28a745;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        
+        .lab-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: none;
+        }
+        
+        .lab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .server-rack {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .server-unit {
+            background: #f8f9fa;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .server-unit:hover {
+            border-color: #007bff;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,123,255,0.1);
+        }
+        
+        .server-unit.selected {
+            border-color: #28a745;
+            background: #e8f5e8;
+        }
+        
+        .server-unit.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .component {
+            background: linear-gradient(145deg, #f0f0f0, #e0e0e0);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .component:hover {
+            transform: scale(1.05);
+            border-color: #007bff;
+        }
+        
+        .component.installed {
+            background: linear-gradient(145deg, #d4edda, #c3e6cb);
+            border-color: #28a745;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            width: 0%;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .task-panel {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        .btn {
+            background: linear-gradient(145deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn.success {
+            background: linear-gradient(145deg, #28a745, #1e7e34);
+        }
+        
+        .btn.warning {
+            background: linear-gradient(145deg, #ffc107, #e0a800);
+            color: #212529;
+        }
+        
+        .btn.danger {
+            background: linear-gradient(145deg, #dc3545, #c82333);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online { background: #28a745; }
+        .status-offline { background: #dc3545; }
+        .status-maintenance { background: #ffc107; }
+        
+        .storage-config {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .raid-option {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .raid-option:hover {
+            border-color: #007bff;
+            transform: translateY(-3px);
+        }
+        
+        .raid-option.selected {
+            border-color: #28a745;
+            background: #e8f5e8;
+        }
+        
+        .raid-option.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        
+        .simulation-log {
+            background: #212529;
+            color: #28a745;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        
+        .quiz-container {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        
+        .question {
+            margin-bottom: 20px;
+        }
+        
+        .answer-option {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .answer-option:hover {
+            border-color: #007bff;
+        }
+        
+        .answer-option.correct {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        
+        .answer-option.incorrect {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        
+        .maintenance-schedule {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .maintenance-task {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .maintenance-task:hover {
+            border-color: #007bff;
+            transform: translateY(-2px);
+        }
+        
+        .maintenance-task.completed {
+            border-color: #28a745;
+            background: #e8f5e8;
+        }
+        
+        .alert {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        
+        .alert-warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            border-color: #17a2b8;
+            color: #0c5460;
+        }
+        
+        .alert-danger {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        
+        .final-grade-panel {
+            background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+            border: 3px solid #2196f3;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .final-grade-panel h3 {
+            color: #1565c0;
+            margin-bottom: 15px;
+        }
+        
+        .grade-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .grade-section {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .attempts-tracker {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+        
+        .attempts-exhausted {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Grade Tracker (Fixed Position) -->
+        <div class="grade-tracker" id="gradeTracker">
+            <h4>📊 Current Grade</h4>
+            <div class="grade-item">
+                <span>Hardware Selection:</span>
+                <span id="grade-hardware">-/20</span>
+            </div>
+            <div class="grade-item">
+                <span>Installation Order:</span>
+                <span id="grade-installation">-/30</span>
+            </div>
+            <div class="grade-item">
+                <span>Installation Quiz:</span>
+                <span id="grade-install-quiz">-/10</span>
+            </div>
+            <div class="grade-item">
+                <span>Storage Selection:</span>
+                <span id="grade-storage">-/15</span>
+            </div>
+            <div class="grade-item">
+                <span>Maintenance Tasks:</span>
+                <span id="grade-maintenance">-/15</span>
+            </div>
+            <div class="grade-item">
+                <span>Final Assessment:</span>
+                <span id="grade-assessment">-/10</span>
+            </div>
+            <div class="total-grade">
+                <span>Total Score:</span>
+                <span id="total-grade">0/100</span>
+            </div>
+            <div class="passing-status" id="passing-status">
+                Not Complete
+            </div>
+            <button class="export-grade" onclick="exportGrade()">Export Grade</button>
+        </div>
+
+        <div class="header">
+            <h1>Virtual Server Hardware Laboratory</h1>
+            <h2>CC1.1: Install and maintain physical server hardware components</h2>
+            <p>Interactive simulation with strict grading system (80% required to pass)</p>
+        </div>
+
+        <div class="lab-tabs">
+            <button class="tab-btn active" onclick="showTab('hardware-eval')">LO1.1.1: Hardware Evaluation</button>
+            <button class="tab-btn" onclick="showTab('storage-deploy')">LO1.1.2: Storage Solutions</button>
+            <button class="tab-btn" onclick="showTab('maintenance')">LO1.1.3: Maintenance Procedures</button>
+            <button class="tab-btn" onclick="showTab('assessment')">Assessment</button>
+        </div>
+
+        <!-- LO1.1.1: Hardware Evaluation Tab -->
+        <div id="hardware-eval" class="lab-content active">
+            <h3>LO1.1.1: Evaluate server hardware requirements including installation procedure</h3>
+            
+            <div class="task-panel">
+                <h4>Scenario: Small Business Web Server Deployment</h4>
+                <p>Your organization needs a new web server to handle 1000 concurrent users, host a database, and provide file sharing services. Evaluate hardware requirements and plan the installation.</p>
+            </div>
+
+            <div class="alert alert-warning">
+                <strong>Grading:</strong> Hardware selection (20 points) + Installation sequence (30 points) + Knowledge quiz (10 points) = 60 points total
+                <br><strong>Important:</strong> Only 2 attempts per section. Incorrect selections deduct points.
+            </div>
+
+            <h4>Available Server Configurations</h4>
+            <div class="attempts-tracker" id="hardware-attempts">
+                Attempts remaining: <strong>2</strong> | Points available: <strong>20</strong>
+            </div>
+            <div class="server-rack">
+                <div class="server-unit" onclick="selectServer(this, 'budget')">
+                    <h5>Budget Server (1U)</h5>
+                    <p><strong>CPU:</strong> Intel Xeon E-2234 (4 cores, 3.6GHz)</p>
+                    <p><strong>RAM:</strong> 16GB DDR4</p>
+                    <p><strong>Storage:</strong> 2x 1TB SATA HDD</p>
+                    <p><strong>Network:</strong> 2x 1GbE</p>
+                    <p><strong>Price:</strong> $2,500</p>
+                </div>
+                
+                <div class="server-unit" onclick="selectServer(this, 'performance')">
+                    <h5>Performance Server (2U)</h5>
+                    <p><strong>CPU:</strong> Intel Xeon Silver 4214 (12 cores, 2.2GHz)</p>
+                    <p><strong>RAM:</strong> 64GB DDR4</p>
+                    <p><strong>Storage:</strong> 4x 2TB SAS HDD + 2x 500GB SSD</p>
+                    <p><strong>Network:</strong> 4x 1GbE + 2x 10GbE</p>
+                    <p><strong>Price:</strong> $8,500</p>
+                </div>
+                
+                <div class="server-unit" onclick="selectServer(this, 'enterprise')">
+                    <h5>Enterprise Server (4U)</h5>
+                    <p><strong>CPU:</strong> 2x Intel Xeon Gold 6248 (20 cores each, 2.5GHz)</p>
+                    <p><strong>RAM:</strong> 256GB DDR4</p>
+                    <p><strong>Storage:</strong> 8x 4TB SAS HDD + 4x 1TB NVMe SSD</p>
+                    <p><strong>Network:</strong> 4x 10GbE + 2x 25GbE</p>
+                    <p><strong>Price:</strong> $25,000</p>
+                </div>
+            </div>
+
+            <div id="server-analysis" style="display: none;">
+                <h4>Hardware Analysis</h4>
+                <div id="analysis-result"></div>
+                <button class="btn" onclick="proceedToInstallation()" id="proceed-btn">Proceed to Installation Planning</button>
+            </div>
+
+            <div id="installation-planning" style="display: none;">
+                <h4>Installation Procedure Planning</h4>
+                <div class="alert alert-danger">
+                    <strong>Challenge:</strong> Components must be installed in the correct order. Wrong sequence deducts 3 points per mistake. Maximum 2 attempts total.
+                </div>
+                
+                <div class="attempts-tracker" id="installation-attempts">
+                    Installation attempts: <strong>0</strong> | Incorrect attempts: <strong>0</strong> | Points available: <strong>30</strong>
+                </div>
+                
+                <div class="alert alert-info" id="current-step">
+                    <strong>Current Task:</strong> <span id="step-instruction">Select the foundation component that must be addressed before any other system elements can function</span>
+                </div>
+                
+                <div class="component-grid" id="component-container">
+                    <!-- Components will be populated here -->
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="install-progress">0%</div>
+                </div>
+                
+                <div id="installation-quiz" style="display: none;">
+                    <h4>Installation Knowledge Check (10 points)</h4>
+                    <div class="quiz-container">
+                        <div class="attempts-tracker" id="quiz-attempts">
+                            Quiz attempts: <strong>0</strong> | Points available: <strong>10</strong>
+                        </div>
+                        <div class="question">
+                            <p><strong>Before proceeding, answer this question about your selected server:</strong></p>
+                            <p id="install-question">What is the most critical consideration when installing the CPU?</p>
+                            <div id="quiz-options">
+                                <!-- Options will be populated dynamically -->
+                            </div>
+                        </div>
+                        <button class="btn" onclick="submitInstallAnswer()" id="submit-install-btn" disabled>Submit Answer</button>
+                        <div id="install-feedback"></div>
+                    </div>
+                </div>
+                
+                <div class="simulation-log" id="install-log"></div>
+            </div>
+        </div>
+
+        <!-- LO1.1.2: Storage Solutions Tab -->
+        <div id="storage-deploy" class="lab-content">
+            <h3>LO1.1.2: Deploy appropriate storage solutions based on organizational needs</h3>
+            
+            <div class="task-panel">
+                <h4>Scenario: Database Server Storage Design</h4>
+                <p>Design a storage solution for a database server that requires high availability, fast performance, and data protection.</p>
+            </div>
+
+            <div class="alert alert-warning">
+                <strong>Grading:</strong> Storage solution selection (15 points). Only 2 attempts. Wrong choice deducts 5 points.
+            </div>
+
+            <h4>Storage Requirements Analysis</h4>
+            <div class="alert alert-info">
+                <strong>Requirements:</strong>
+                <ul>
+                    <li>High availability (99.9% uptime)</li>
+                    <li>Fast read/write performance for database operations</li>
+                    <li>Data redundancy and fault tolerance</li>
+                    <li>Capacity: 10TB usable storage</li>
+                    <li>Budget: $15,000 for storage subsystem</li>
+                </ul>
+            </div>
+
+            <h4>Select Data Protection Strategy</h4>
+            <div class="attempts-tracker" id="storage-attempts">
+                Attempts remaining: <strong>2</strong> | Points available: <strong>15</strong>
+            </div>
+            <div class="storage-config" id="storage-options">
+                <!-- RAID options will be populated here -->
+            </div>
+
+            <div id="raid-analysis" style="display: none;">
+                <h4>Storage Configuration Analysis</h4>
+                <div id="raid-result"></div>
+                <button class="btn" onclick="configureStorage()">Configure Storage Array</button>
+            </div>
+
+            <div id="storage-config-panel" style="display: none;">
+                <h4>Storage Array Configuration</h4>
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> This will initialize the storage array and erase all data. Ensure proper backup procedures are in place.
+                </div>
+                
+                <button class="btn" onclick="initializeArray()">Initialize Array</button>
+                <button class="btn warning" onclick="runStorageTest()">Run Performance Test</button>
+                <button class="btn success" onclick="completeStorageSetup()">Complete Setup</button>
+                
+                <div class="simulation-log" id="storage-log"></div>
+            </div>
+        </div>
+
+        <!-- LO1.1.3: Maintenance Procedures Tab -->
+        <div id="maintenance" class="lab-content">
+            <h3>LO1.1.3: Perform server hardware maintenance procedures</h3>
+            
+            <div class="task-panel">
+                <h4>Scenario: Scheduled Maintenance Window</h4>
+                <p>Perform routine maintenance on production servers during a scheduled maintenance window.</p>
+            </div>
+
+            <div class="alert alert-info">
+                <strong>Grading:</strong> Maintenance task completion (15 points total - efficiency and accuracy matter)
+            </div>
+
+            <h4>Server Status Overview</h4>
+            <div class="alert alert-info">
+                <strong>Instructions:</strong> Click on a server to view detailed status and available maintenance options.
+            </div>
+            <div class="server-rack" id="server-status-container">
+                <!-- Servers will be populated here -->
+            </div>
+
+            <div id="server-details" style="display: none;">
+                <h4>Selected Server Details</h4>
+                <div id="server-info"></div>
+                <button class="btn" onclick="beginMaintenance()">Begin Maintenance on Selected Server</button>
+            </div>
+
+            <h4>Maintenance Tasks</h4>
+            <div class="attempts-tracker" id="maintenance-attempts" style="display: none;">
+                Tasks completed: <strong>0/6</strong> | Efficiency bonus available | Points earned: <strong>0/15</strong>
+            </div>
+            <div class="alert alert-warning" id="maintenance-instructions">
+                <strong>Instructions:</strong> First select a server above, then click "Begin Maintenance" to unlock the maintenance tasks below.
+            </div>
+            <div class="maintenance-schedule" id="maintenance-tasks" style="opacity: 0.5; pointer-events: none;">
+                <!-- Maintenance tasks will be populated here -->
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="maintenance-progress">0%</div>
+            </div>
+
+            <div class="simulation-log" id="maintenance-log"></div>
+
+            <div id="maintenance-results" style="display: none;">
+                <div class="alert alert-success">
+                    <strong>Maintenance Complete!</strong> All tasks have been completed successfully.
+                </div>
+                <button class="btn success" onclick="generateMaintenanceReport()">Generate Maintenance Report</button>
+            </div>
+        </div>
+
+        <!-- Assessment Tab -->
+        <div id="assessment" class="lab-content">
+            <h3>Competency Assessment - CC1.1 (10 points)</h3>
+            
+            <div class="alert alert-warning">
+                <strong>Grading:</strong> Final assessment (10 points) - Only 2 attempts. Wrong answers deduct 2 points each.
+            </div>
+
+            <div class="attempts-tracker" id="assessment-attempts">
+                Assessment attempts: <strong>0</strong> | Points available: <strong>10</strong>
+            </div>
+            
+            <div class="quiz-container">
+                <div class="question">
+                    <h4>Question 1: Hardware Requirements Analysis</h4>
+                    <p>A web application requires high availability and needs to handle 5000 concurrent users with database operations. Which server configuration would be most appropriate?</p>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q1"> Budget server with basic CPU and minimal RAM
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, true)">
+                        <input type="radio" name="q1"> Performance server with multi-core CPU, adequate RAM, and redundant components
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q1"> Single-purpose server optimized only for storage
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q1"> Desktop computer with server software installed
+                    </label>
+                </div>
+
+                <div class="question">
+                    <h4>Question 2: RAID Configuration</h4>
+                    <p>For a database server requiring both high performance and fault tolerance, which RAID level provides the best balance?</p>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q2"> RAID 0 - Maximum performance, no redundancy
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, true)">
+                        <input type="radio" name="q2"> RAID 10 - High performance with redundancy
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q2"> RAID 5 - Good capacity utilization but poor write performance
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q2"> No RAID - Individual drives for maximum capacity
+                    </label>
+                </div>
+
+                <div class="question">
+                    <h4>Question 3: Maintenance Procedures</h4>
+                    <p>During server maintenance, what is the correct order of operations?</p>
+                    <label class="answer-option" onclick="selectAnswer(this, true)">
+                        <input type="radio" name="q3"> Power down → Document current state → Perform maintenance → Test functionality → Update documentation
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q3"> Perform maintenance → Power down → Test → Document
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q3"> Hot-swap components without powering down
+                    </label>
+                    <label class="answer-option" onclick="selectAnswer(this, false)">
+                        <input type="radio" name="q3"> Test first → Maintenance → Power cycle → Document
+                    </label>
+                </div>
+
+                <button class="btn" onclick="gradeAssessment()" id="submit-assessment-btn">Submit Assessment</button>
+                <div id="assessment-results"></div>
+            </div>
+        </div>
+
+        <!-- Final Grade Summary -->
+        <div id="final-grade-summary" style="display: none;">
+            <div class="final-grade-panel">
+                <h3>🎓 Lab Completion Summary</h3>
+                <div class="grade-breakdown" id="grade-breakdown">
+                    <!-- Grade breakdown will be populated here -->
+                </div>
+                <div class="total-grade" style="font-size: 1.3em; color: #1565c0;">
+                    <strong>Final Grade: <span id="final-percentage">0</span>% (<span id="final-letter">F</span>)</strong>
+                </div>
+                <div class="passing-status" id="final-passing-status" style="margin-top: 15px; font-size: 1.1em;">
+                    <!-- Pass/Fail status will be shown here -->
+                </div>
+                <button class="btn success" onclick="exportFinalGrade()" style="margin-top: 15px;">Export Final Grade</button>
             </div>
         </div>
     </div>
 
     <script>
-        // Grading system variables
+        // Grading system variables - Updated with stricter limits
         const gradingSystem = {
-            hardwareSelection: { max: 20, current: 0, attempts: 0, maxAttempts: 3 },
-            installationOrder: { max: 30, current: 0, attempts: 0, incorrectAttempts: 0 },
-            installationQuiz: { max: 10, current: 0, attempts: 0, maxAttempts: 3 },
+            hardwareSelection: { max: 20, current: 0, attempts: 0, maxAttempts: 2 },
+            installationOrder: { max: 30, current: 0, attempts: 0, incorrectAttempts: 0, maxIncorrect: 10 },
+            installationQuiz: { max: 10, current: 0, attempts: 0, maxAttempts: 2 },
             storageSelection: { max: 15, current: 0, attempts: 0, maxAttempts: 2 },
             maintenanceTasks: { max: 15, current: 0, tasksCompleted: 0, startTime: null },
-            finalAssessment: { max: 10, current: 0, attempts: 0, maxAttempts: 2 }
+            finalAssessment: { max: 10, current: 0, attempts: 0, maxAttempts: 2, incorrectAnswers: 0 }
         };
 
         // Global variables
@@ -87,14 +921,15 @@
                 redundancy: 'None',
                 capacity: '100% of drives',
                 minDrives: '2',
-                points: 5, // Poor choice for database
+                points: 0, // Poor choice for database - now gives 0 points
                 analysis: {
-                    type: 'warning',
+                    type: 'danger',
                     content: `
                         <p>❌ <strong>Fatal Flaw:</strong> No redundancy - single drive failure destroys all data</p>
                         <p>❌ Does not meet high availability requirement</p>
                         <p>✅ Excellent performance for read/write operations</p>
                         <p><strong>Verdict:</strong> Unsuitable for production database server</p>
+                        <p><strong>Grade Impact:</strong> -5 points for inappropriate choice</p>
                     `
                 }
             },
@@ -123,7 +958,7 @@
                 redundancy: '1 drive failure',
                 capacity: '(n-1)/n of drives',
                 minDrives: '3',
-                points: 8, // Poor for database writes
+                points: 5, // Poor for database writes - reduced points
                 analysis: {
                     type: 'warning',
                     content: `
@@ -132,6 +967,7 @@
                         <p>❌ Poor write performance due to parity calculations</p>
                         <p>❌ Long rebuild times with large drives</p>
                         <p><strong>Verdict:</strong> Poor choice for write-intensive database operations</p>
+                        <p><strong>Grade Impact:</strong> Partial credit due to performance limitations</p>
                     `
                 }
             },
@@ -151,6 +987,7 @@
                         <p>✅ Fast rebuild times</p>
                         <p>⚠️ 50% capacity utilization but meets performance needs</p>
                         <p><strong>Verdict:</strong> Optimal choice for high-performance database server</p>
+                        <p><strong>Grade Impact:</strong> Full points for excellent selection</p>
                     `
                 }
             }
@@ -297,12 +1134,31 @@
             const total = Object.values(gradingSystem).reduce((sum, section) => sum + section.current, 0);
             document.getElementById('total-grade').textContent = `${total}/100`;
             
+            // Update passing status
+            const percentage = total;
+            const passingStatus = document.getElementById('passing-status');
+            if (percentage >= 80) {
+                passingStatus.textContent = `PASS (${percentage}%)`;
+                passingStatus.className = 'passing-status pass';
+            } else if (percentage > 0) {
+                passingStatus.textContent = `FAIL (${percentage}%)`;
+                passingStatus.className = 'passing-status fail';
+            } else {
+                passingStatus.textContent = 'Not Complete';
+                passingStatus.className = 'passing-status';
+            }
+            
             // Update grade item colors
             Object.keys(gradingSystem).forEach((key, index) => {
                 const element = document.querySelectorAll('.grade-item')[index];
                 if (gradingSystem[key].current > 0) {
-                    element.classList.add('completed');
-                    element.classList.remove('failed');
+                    if (gradingSystem[key].current >= gradingSystem[key].max * 0.7) {
+                        element.classList.add('completed');
+                        element.classList.remove('failed');
+                    } else {
+                        element.classList.add('failed');
+                        element.classList.remove('completed');
+                    }
                 }
             });
         }
@@ -319,6 +1175,7 @@
             const total = Object.values(gradingSystem).reduce((sum, section) => sum + section.current, 0);
             const percentage = Math.round(total);
             const letterGrade = calculateLetterGrade(percentage);
+            const isPassing = percentage >= 80;
             
             const gradeData = {
                 studentName: prompt("Enter student name:", "Student"),
@@ -335,6 +1192,15 @@
                 totalScore: `${total}/100`,
                 percentage: `${percentage}%`,
                 letterGrade: letterGrade,
+                passingGrade: isPassing ? "PASS" : "FAIL",
+                requiredToPass: "80%",
+                attemptsSummary: {
+                    hardwareAttempts: `${gradingSystem.hardwareSelection.attempts}/${gradingSystem.hardwareSelection.maxAttempts}`,
+                    installationErrors: gradingSystem.installationOrder.incorrectAttempts,
+                    quizAttempts: `${gradingSystem.installationQuiz.attempts}/${gradingSystem.installationQuiz.maxAttempts}`,
+                    storageAttempts: `${gradingSystem.storageSelection.attempts}/${gradingSystem.storageSelection.maxAttempts}`,
+                    assessmentAttempts: `${gradingSystem.finalAssessment.attempts}/${gradingSystem.finalAssessment.maxAttempts}`
+                },
                 timestamp: new Date().toISOString()
             };
             
@@ -355,9 +1221,17 @@
             const total = Object.values(gradingSystem).reduce((sum, section) => sum + section.current, 0);
             const percentage = Math.round(total);
             const letterGrade = calculateLetterGrade(percentage);
+            const isPassing = percentage >= 80;
             
             document.getElementById('final-percentage').textContent = percentage;
             document.getElementById('final-letter').textContent = letterGrade;
+            
+            const finalPassingStatus = document.getElementById('final-passing-status');
+            if (isPassing) {
+                finalPassingStatus.innerHTML = '<div class="alert alert-success"><strong>PASS</strong> - Competency Achieved (80% required)</div>';
+            } else {
+                finalPassingStatus.innerHTML = '<div class="alert alert-danger"><strong>FAIL</strong> - Competency Not Achieved (80% required)</div>';
+            }
             
             const breakdown = document.getElementById('grade-breakdown');
             breakdown.innerHTML = `
@@ -374,7 +1248,7 @@
                 <div class="grade-section">
                     <h5>Installation Quiz</h5>
                     <p>${gradingSystem.installationQuiz.current}/${gradingSystem.installationQuiz.max} points</p>
-                    <small>Attempts: ${gradingSystem.installationQuiz.attempts}</small>
+                    <small>Attempts: ${gradingSystem.installationQuiz.attempts}/${gradingSystem.installationQuiz.maxAttempts}</small>
                 </div>
                 <div class="grade-section">
                     <h5>Storage Selection</h5>
@@ -389,7 +1263,7 @@
                 <div class="grade-section">
                     <h5>Final Assessment</h5>
                     <p>${gradingSystem.finalAssessment.current}/${gradingSystem.finalAssessment.max} points</p>
-                    <small>Attempts: ${gradingSystem.finalAssessment.attempts}</small>
+                    <small>Attempts: ${gradingSystem.finalAssessment.attempts}/${gradingSystem.finalAssessment.maxAttempts}</small>
                 </div>
             `;
             
@@ -531,7 +1405,7 @@
             currentTab = tabName;
         }
 
-        // Server selection functionality with grading
+        // Server selection functionality with stricter grading
         function selectServer(element, serverType) {
             // Check if already attempted max times
             if (gradingSystem.hardwareSelection.attempts >= gradingSystem.hardwareSelection.maxAttempts) {
@@ -555,17 +1429,17 @@
             
             switch(serverType) {
                 case 'budget':
-                    points = 5; // Poor choice
+                    points = 0; // Changed to 0 points for poor choice
                     analysis = `
-                        <div class="alert alert-warning">
-                            <strong>Analysis:</strong> Budget server may not meet performance requirements for 1000 concurrent users.
+                        <div class="alert alert-danger">
+                            <strong>Analysis:</strong> Budget server is inadequate for the specified requirements.
                             <ul>
-                                <li>❌ CPU cores insufficient for high load</li>
-                                <li>❌ RAM may cause performance bottlenecks</li>
-                                <li>❌ Storage configuration lacks redundancy</li>
-                                <li>✅ Cost-effective for light workloads</li>
+                                <li>❌ CPU cores insufficient for 1000 concurrent users</li>
+                                <li>❌ RAM will cause severe performance bottlenecks</li>
+                                <li>❌ Storage configuration lacks redundancy and performance</li>
+                                <li>❌ Network capacity insufficient for expected load</li>
                             </ul>
-                            <strong>Recommendation:</strong> Consider upgrading for production environment.
+                            <strong>Recommendation:</strong> This configuration will fail in production.
                             <p><strong>Grade: ${points}/${gradingSystem.hardwareSelection.max} points</strong> - Inadequate for requirements</p>
                         </div>
                     `;
@@ -574,11 +1448,11 @@
                     points = 20; // Perfect choice
                     analysis = `
                         <div class="alert alert-success">
-                            <strong>Analysis:</strong> Performance server meets requirements for the specified workload.
+                            <strong>Analysis:</strong> Performance server perfectly matches requirements.
                             <ul>
-                                <li>✅ Adequate CPU cores for concurrent users</li>
+                                <li>✅ Adequate CPU cores for 1000 concurrent users</li>
                                 <li>✅ Sufficient RAM for database operations</li>
-                                <li>✅ Hybrid storage provides good performance</li>
+                                <li>✅ Hybrid storage provides excellent performance</li>
                                 <li>✅ Network capacity supports expected traffic</li>
                             </ul>
                             <strong>Recommendation:</strong> Optimal choice for this deployment.
@@ -587,44 +1461,57 @@
                     `;
                     break;
                 case 'enterprise':
-                    points = 12; // Over-spec but functional
+                    points = 15; // Good but over-spec
                     analysis = `
-                        <div class="alert alert-info">
-                            <strong>Analysis:</strong> Enterprise server exceeds requirements but provides excellent scalability.
+                        <div class="alert alert-warning">
+                            <strong>Analysis:</strong> Enterprise server exceeds requirements significantly.
                             <ul>
-                                <li>✅ High-performance dual CPUs handle heavy workloads</li>
-                                <li>✅ Large RAM capacity supports future growth</li>
-                                <li>✅ Enterprise storage with NVMe performance</li>
-                                <li>⚠️ Higher cost may exceed budget requirements</li>
+                                <li>✅ High-performance dual CPUs (overkill for current needs)</li>
+                                <li>✅ Large RAM capacity (excessive for current requirements)</li>
+                                <li>✅ Enterprise storage (premium features not needed)</li>
+                                <li>❌ Cost significantly exceeds budget requirements</li>
                             </ul>
-                            <strong>Recommendation:</strong> Future-proof solution if budget allows.
-                            <p><strong>Grade: ${points}/${gradingSystem.hardwareSelection.max} points</strong> - Over-specified but functional</p>
+                            <strong>Recommendation:</strong> Over-engineered and cost-ineffective.
+                            <p><strong>Grade: ${points}/${gradingSystem.hardwareSelection.max} points</strong> - Good but not optimal</p>
                         </div>
                     `;
                     break;
             }
             
-            // Award points based on attempt number (penalty for multiple attempts)
+            // Award points only on first attempt for hardware selection
             if (gradingSystem.hardwareSelection.attempts === 1) {
                 gradingSystem.hardwareSelection.current = points;
-            } else if (gradingSystem.hardwareSelection.attempts === 2) {
-                gradingSystem.hardwareSelection.current = Math.round(points * 0.8);
             } else {
-                gradingSystem.hardwareSelection.current = Math.round(points * 0.6);
+                // Second attempt gets reduced points
+                gradingSystem.hardwareSelection.current = Math.max(0, Math.round(points * 0.5));
             }
             
             // Update attempts display
             const attemptsRemaining = gradingSystem.hardwareSelection.maxAttempts - gradingSystem.hardwareSelection.attempts;
-            document.getElementById('hardware-attempts').innerHTML = `
-                Attempts remaining: <strong>${attemptsRemaining}</strong> | Points earned: <strong>${gradingSystem.hardwareSelection.current}/${gradingSystem.hardwareSelection.max}</strong>
-            `;
+            const attemptsElement = document.getElementById('hardware-attempts');
+            
+            if (attemptsRemaining === 0) {
+                attemptsElement.innerHTML = `
+                    <strong>No attempts remaining</strong> | Points earned: <strong>${gradingSystem.hardwareSelection.current}/${gradingSystem.hardwareSelection.max}</strong>
+                `;
+                attemptsElement.classList.add('attempts-exhausted');
+                
+                // Disable remaining server options
+                document.querySelectorAll('.server-unit:not(.selected)').forEach(unit => {
+                    unit.classList.add('disabled');
+                });
+            } else {
+                attemptsElement.innerHTML = `
+                    Attempts remaining: <strong>${attemptsRemaining}</strong> | Points earned: <strong>${gradingSystem.hardwareSelection.current}/${gradingSystem.hardwareSelection.max}</strong>
+                `;
+            }
             
             resultDiv.innerHTML = analysis;
             analysisDiv.style.display = 'block';
             updateGradeDisplay();
             
-            // Mark tab as completed if good choice
-            if (points >= 12) {
+            // Mark tab as completed if reasonable choice
+            if (points >= 15) {
                 document.querySelector('[onclick="showTab(\'hardware-eval\')"]').classList.add('completed');
             }
         }
@@ -638,7 +1525,7 @@
             logInstallation('Starting server installation procedure...');
         }
 
-        // Installation functionality with detailed grading
+        // Installation functionality with stricter grading
         function installComponent(element, componentType) {
             if (element.classList.contains('installed')) {
                 logInstallation('⚠️ Component already installed.');
@@ -656,18 +1543,38 @@
                 
                 gradingSystem.installationOrder.incorrectAttempts++;
                 
+                // Deduct 3 points for each incorrect attempt
+                gradingSystem.installationOrder.current = Math.max(0, 
+                    gradingSystem.installationOrder.max - (gradingSystem.installationOrder.incorrectAttempts * 3));
+                
                 let correctNext = componentDefinitions.find(c => c.order === expectedInstallStep);
                 
                 logInstallation(`❌ INCORRECT ORDER: ${component.title} cannot be installed at this step.`);
                 logInstallation(`⚠️ You must complete ${correctNext.title} first (Step ${expectedInstallStep}).`);
+                logInstallation(`💸 Points deducted: -3 points for incorrect installation order`);
                 logInstallation('📚 Proper installation sequence prevents damage and ensures functionality.');
+                
+                // Check if too many incorrect attempts
+                if (gradingSystem.installationOrder.incorrectAttempts >= gradingSystem.installationOrder.maxIncorrect) {
+                    logInstallation('❌ INSTALLATION FAILED: Too many incorrect attempts. Installation procedure terminated.');
+                    
+                    // Disable all components
+                    document.querySelectorAll('.component').forEach(comp => {
+                        comp.style.opacity = '0.5';
+                        comp.style.pointerEvents = 'none';
+                    });
+                    
+                    gradingSystem.installationOrder.current = 0;
+                }
                 
                 // Update attempts display
                 document.getElementById('installation-attempts').innerHTML = `
                     Installation attempts: <strong>${gradingSystem.installationOrder.attempts}</strong> | 
                     Incorrect attempts: <strong>${gradingSystem.installationOrder.incorrectAttempts}</strong> | 
-                    Points available: <strong>${Math.max(0, gradingSystem.installationOrder.max - (gradingSystem.installationOrder.incorrectAttempts * 5))}</strong>
+                    Points earned: <strong>${gradingSystem.installationOrder.current}/${gradingSystem.installationOrder.max}</strong>
                 `;
+                
+                updateGradeDisplay();
                 
                 setTimeout(() => {
                     element.style.border = '';
@@ -695,8 +1602,11 @@
                 stepInstruction.textContent = 'All components installed - ready for knowledge verification';
                 document.getElementById('current-step').className = 'alert alert-success';
                 
-                // Calculate installation points (max 30, minus 5 for each incorrect attempt)
-                gradingSystem.installationOrder.current = Math.max(0, gradingSystem.installationOrder.max - (gradingSystem.installationOrder.incorrectAttempts * 5));
+                // Calculate final installation points (only if not failed)
+                if (gradingSystem.installationOrder.current > 0) {
+                    gradingSystem.installationOrder.current = Math.max(0, 
+                        gradingSystem.installationOrder.max - (gradingSystem.installationOrder.incorrectAttempts * 3));
+                }
                 updateGradeDisplay();
             }
             
@@ -800,10 +1710,8 @@
                 // Award points based on attempt number
                 if (gradingSystem.installationQuiz.attempts === 1) {
                     gradingSystem.installationQuiz.current = 10;
-                } else if (gradingSystem.installationQuiz.attempts === 2) {
-                    gradingSystem.installationQuiz.current = 7;
                 } else {
-                    gradingSystem.installationQuiz.current = 5;
+                    gradingSystem.installationQuiz.current = 5; // Half points on second attempt
                 }
                 
                 feedbackDiv.innerHTML = `
@@ -824,6 +1732,7 @@
                         <div class="alert alert-warning">
                             <strong>Incorrect.</strong> Review installation best practices. 
                             <p>Attempts remaining: <strong>${attemptsLeft}</strong></p>
+                            <p>Next attempt will receive reduced points.</p>
                             <button class="btn warning" onclick="retryInstallQuestion()">Try Another Question</button>
                         </div>
                     `;
@@ -843,7 +1752,7 @@
 
             // Update quiz attempts display
             document.getElementById('quiz-attempts').innerHTML = `
-                Quiz attempts: <strong>${gradingSystem.installationQuiz.attempts}</strong> | 
+                Quiz attempts: <strong>${gradingSystem.installationQuiz.attempts}/${gradingSystem.installationQuiz.maxAttempts}</strong> | 
                 Points earned: <strong>${gradingSystem.installationQuiz.current}/${gradingSystem.installationQuiz.max}</strong>
             `;
         }
@@ -851,10 +1760,16 @@
         function retryInstallQuestion() {
             document.getElementById('install-feedback').innerHTML = '';
             document.getElementById('submit-install-btn').disabled = true;
+            
+            // Re-enable answer options
+            document.querySelectorAll('#quiz-options .answer-option').forEach(option => {
+                option.style.pointerEvents = 'auto';
+            });
+            
             updateInstallQuestion();
         }
 
-        // Storage functionality with grading
+        // Storage functionality with stricter grading
         function selectRAID(element, raidType) {
             if (gradingSystem.storageSelection.attempts >= gradingSystem.storageSelection.maxAttempts) {
                 alert('Maximum attempts reached for storage selection.');
@@ -876,10 +1791,15 @@
             
             // Award points based on choice and attempt number
             let basePoints = raidInfo.points;
-            if (gradingSystem.storageSelection.attempts === 1) {
+            
+            // Deduct points for poor choices
+            if (raidType === 'raid0') {
+                gradingSystem.storageSelection.current = Math.max(0, gradingSystem.storageSelection.current - 5);
+            } else if (gradingSystem.storageSelection.attempts === 1) {
                 gradingSystem.storageSelection.current = basePoints;
             } else {
-                gradingSystem.storageSelection.current = Math.round(basePoints * 0.7);
+                // Second attempt gets half points
+                gradingSystem.storageSelection.current = Math.round(basePoints * 0.5);
             }
             
             resultDiv.innerHTML = `
@@ -892,10 +1812,25 @@
             
             // Update attempts display
             const attemptsRemaining = gradingSystem.storageSelection.maxAttempts - gradingSystem.storageSelection.attempts;
-            document.getElementById('storage-attempts').innerHTML = `
-                Attempts remaining: <strong>${attemptsRemaining}</strong> | 
-                Points earned: <strong>${gradingSystem.storageSelection.current}/${gradingSystem.storageSelection.max}</strong>
-            `;
+            const attemptsElement = document.getElementById('storage-attempts');
+            
+            if (attemptsRemaining === 0) {
+                attemptsElement.innerHTML = `
+                    <strong>No attempts remaining</strong> | 
+                    Points earned: <strong>${gradingSystem.storageSelection.current}/${gradingSystem.storageSelection.max}</strong>
+                `;
+                attemptsElement.classList.add('attempts-exhausted');
+                
+                // Disable remaining RAID options
+                document.querySelectorAll('.raid-option:not(.selected)').forEach(option => {
+                    option.classList.add('disabled');
+                });
+            } else {
+                attemptsElement.innerHTML = `
+                    Attempts remaining: <strong>${attemptsRemaining}</strong> | 
+                    Points earned: <strong>${gradingSystem.storageSelection.current}/${gradingSystem.storageSelection.max}</strong>
+                `;
+            }
             
             analysisDiv.style.display = 'block';
             updateGradeDisplay();
@@ -936,7 +1871,7 @@
             logStorage('Array is ready for production operations.');
         }
 
-        // Maintenance functionality with grading
+        // Maintenance functionality (unchanged grading)
         function selectServerForMaintenance(element, serverId) {
             document.querySelectorAll('.server-unit').forEach(unit => {
                 unit.classList.remove('selected');
@@ -1073,7 +2008,7 @@
             logMaintenance('Report generated and distributed to management.');
         }
 
-        // Assessment functionality with grading
+        // Assessment functionality with stricter grading
         function selectAnswer(element, isCorrect) {
             const questionName = element.querySelector('input').name;
             
@@ -1100,14 +2035,19 @@
             
             const totalQuestions = 3;
             const correctAnswers = Object.values(assessmentAnswers).filter(answer => answer === true).length;
+            const incorrectAnswers = totalQuestions - correctAnswers;
             const percentage = Math.round((correctAnswers / totalQuestions) * 100);
             
-            // Award points based on percentage and attempt number
-            let basePoints = Math.round((correctAnswers / totalQuestions) * gradingSystem.finalAssessment.max);
+            // Deduct 2 points for each incorrect answer
+            let basePoints = gradingSystem.finalAssessment.max;
+            let pointsLost = incorrectAnswers * 2;
+            
+            // Award points based on attempt number
             if (gradingSystem.finalAssessment.attempts === 1) {
-                gradingSystem.finalAssessment.current = basePoints;
+                gradingSystem.finalAssessment.current = Math.max(0, basePoints - pointsLost);
             } else {
-                gradingSystem.finalAssessment.current = Math.round(basePoints * 0.8);
+                // Second attempt gets reduced base points
+                gradingSystem.finalAssessment.current = Math.max(0, Math.round((basePoints - pointsLost) * 0.7));
             }
             
             let grade = '';
@@ -1134,6 +2074,7 @@
                     <p><strong>Score:</strong> ${correctAnswers}/${totalQuestions} (${percentage}%)</p>
                     <p><strong>Grade:</strong> ${grade}</p>
                     <p><strong>Points Earned:</strong> ${gradingSystem.finalAssessment.current}/${gradingSystem.finalAssessment.max}</p>
+                    <p><strong>Points Lost:</strong> ${pointsLost} (-2 per incorrect answer)</p>
                     <p><strong>Feedback:</strong> ${feedback}</p>
                 </div>
                 
@@ -1147,11 +2088,24 @@
 
             // Update attempts display
             const attemptsLeft = gradingSystem.finalAssessment.maxAttempts - gradingSystem.finalAssessment.attempts;
-            document.getElementById('assessment-attempts').innerHTML = `
-                Assessment attempts: <strong>${gradingSystem.finalAssessment.attempts}</strong> | 
-                Points earned: <strong>${gradingSystem.finalAssessment.current}/${gradingSystem.finalAssessment.max}</strong>
-                ${attemptsLeft > 0 ? ` | Attempts remaining: <strong>${attemptsLeft}</strong>` : ''}
-            `;
+            const attemptsElement = document.getElementById('assessment-attempts');
+            
+            if (attemptsLeft === 0) {
+                attemptsElement.innerHTML = `
+                    <strong>No attempts remaining</strong> | 
+                    Points earned: <strong>${gradingSystem.finalAssessment.current}/${gradingSystem.finalAssessment.max}</strong>
+                `;
+                attemptsElement.classList.add('attempts-exhausted');
+                
+                // Disable submit button
+                document.getElementById('submit-assessment-btn').disabled = true;
+            } else {
+                attemptsElement.innerHTML = `
+                    Assessment attempts: <strong>${gradingSystem.finalAssessment.attempts}/${gradingSystem.finalAssessment.maxAttempts}</strong> | 
+                    Points earned: <strong>${gradingSystem.finalAssessment.current}/${gradingSystem.finalAssessment.max}</strong>
+                    ${attemptsLeft > 0 ? ` | Attempts remaining: <strong>${attemptsLeft}</strong>` : ''}
+                `;
+            }
 
             updateGradeDisplay();
             
@@ -1160,15 +2114,20 @@
             }
 
             // Check if lab is complete
-            const allSectionsCompleted = gradingSystem.hardwareSelection.current > 0 &&
-                                       gradingSystem.installationOrder.current > 0 &&
-                                       gradingSystem.storageSelection.current > 0 &&
-                                       gradingSystem.maintenanceTasks.current > 0 &&
-                                       gradingSystem.finalAssessment.current > 0;
+            const allSectionsCompleted = gradingSystem.hardwareSelection.current >= 0 &&
+                                       gradingSystem.installationOrder.current >= 0 &&
+                                       gradingSystem.storageSelection.current >= 0 &&
+                                       gradingSystem.maintenanceTasks.current >= 0 &&
+                                       gradingSystem.finalAssessment.current >= 0;
             
             if (allSectionsCompleted) {
+                const totalScore = Object.values(gradingSystem).reduce((sum, section) => sum + section.current, 0);
                 setTimeout(() => {
-                    alert('🎓 Lab Complete! Check your final grade and export your results.');
+                    if (totalScore >= 80) {
+                        alert('🎓 Lab Complete! You have achieved a passing grade. Check your final results.');
+                    } else {
+                        alert('📋 Lab Complete! You did not achieve the 80% required to pass. Review your results.');
+                    }
                     showFinalGradeSummary();
                 }, 1000);
             }
@@ -1196,798 +2155,19 @@
             log.scrollTop = log.scrollHeight;
         }
 
+        // Export final grade function
+        function exportFinalGrade() {
+            exportGrade();
+        }
+
         // Initialize the lab when page loads
         document.addEventListener('DOMContentLoaded', function() {
             initializeRandomizedContent();
             updateGradeDisplay();
             logInstallation('Virtual Server Hardware Lab initialized successfully.');
             logInstallation('Ready to begin hardware evaluation procedures.');
+            logInstallation('⚠️ WARNING: Only 2 attempts per section. Incorrect choices deduct points.');
         });
     </script>
 </body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Virtual Server Hardware Lab - CC1.1 (Graded)</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: #333;
-            line-height: 1.6;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-        }
-        
-        .grade-tracker {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            z-index: 1000;
-            min-width: 200px;
-        }
-        
-        .grade-tracker h4 {
-            color: #1e3c72;
-            margin-bottom: 10px;
-            border-bottom: 2px solid #ff6b35;
-            padding-bottom: 5px;
-        }
-        
-        .grade-item {
-            display: flex;
-            justify-content: space-between;
-            margin: 5px 0;
-            padding: 3px 0;
-        }
-        
-        .grade-item.completed {
-            color: #28a745;
-            font-weight: bold;
-        }
-        
-        .grade-item.failed {
-            color: #dc3545;
-            font-weight: bold;
-        }
-        
-        .total-grade {
-            border-top: 2px solid #1e3c72;
-            margin-top: 10px;
-            padding-top: 8px;
-            font-weight: bold;
-            font-size: 1.1em;
-        }
-        
-        .export-grade {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 10px;
-            font-size: 0.9em;
-        }
-        
-        .export-grade:hover {
-            background: #1e7e34;
-        }
-        
-        .lab-tabs {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 20px;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        
-        .tab-btn {
-            padding: 12px 24px;
-            background: rgba(255, 255, 255, 0.9);
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: bold;
-            color: #1e3c72;
-            position: relative;
-        }
-        
-        .tab-btn:hover {
-            background: white;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-        
-        .tab-btn.active {
-            background: #ff6b35;
-            color: white;
-        }
-        
-        .tab-btn.completed::after {
-            content: "✓";
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #28a745;
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-        }
-        
-        .lab-content {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            display: none;
-        }
-        
-        .lab-content.active {
-            display: block;
-            animation: fadeIn 0.5s ease;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .server-rack {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin: 20px 0;
-        }
-        
-        .server-unit {
-            background: #f8f9fa;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            padding: 20px;
-            position: relative;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .server-unit:hover {
-            border-color: #007bff;
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,123,255,0.1);
-        }
-        
-        .server-unit.selected {
-            border-color: #28a745;
-            background: #e8f5e8;
-        }
-        
-        .component-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        
-        .component {
-            background: linear-gradient(145deg, #f0f0f0, #e0e0e0);
-            border-radius: 10px;
-            padding: 15px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-        }
-        
-        .component:hover {
-            transform: scale(1.05);
-            border-color: #007bff;
-        }
-        
-        .component.installed {
-            background: linear-gradient(145deg, #d4edda, #c3e6cb);
-            border-color: #28a745;
-        }
-        
-        .progress-bar {
-            width: 100%;
-            height: 20px;
-            background: #e9ecef;
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 15px 0;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #28a745, #20c997);
-            width: 0%;
-            transition: width 0.5s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-        }
-        
-        .task-panel {
-            background: #f8f9fa;
-            border-left: 4px solid #007bff;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 0 10px 10px 0;
-        }
-        
-        .btn {
-            background: linear-gradient(145deg, #007bff, #0056b3);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            margin: 5px;
-        }
-        
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,123,255,0.3);
-        }
-        
-        .btn.success {
-            background: linear-gradient(145deg, #28a745, #1e7e34);
-        }
-        
-        .btn.warning {
-            background: linear-gradient(145deg, #ffc107, #e0a800);
-            color: #212529;
-        }
-        
-        .btn.danger {
-            background: linear-gradient(145deg, #dc3545, #c82333);
-        }
-        
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-        
-        .status-online { background: #28a745; }
-        .status-offline { background: #dc3545; }
-        .status-maintenance { background: #ffc107; }
-        
-        .storage-config {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin: 20px 0;
-        }
-        
-        .raid-option {
-            background: white;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            padding: 20px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .raid-option:hover {
-            border-color: #007bff;
-            transform: translateY(-3px);
-        }
-        
-        .raid-option.selected {
-            border-color: #28a745;
-            background: #e8f5e8;
-        }
-        
-        .simulation-log {
-            background: #212529;
-            color: #28a745;
-            padding: 20px;
-            border-radius: 10px;
-            font-family: 'Courier New', monospace;
-            max-height: 300px;
-            overflow-y: auto;
-            margin: 20px 0;
-        }
-        
-        .quiz-container {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 25px;
-            margin: 20px 0;
-        }
-        
-        .question {
-            margin-bottom: 20px;
-        }
-        
-        .answer-option {
-            display: block;
-            margin: 10px 0;
-            padding: 10px;
-            background: white;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .answer-option:hover {
-            border-color: #007bff;
-        }
-        
-        .answer-option.correct {
-            border-color: #28a745;
-            background: #d4edda;
-        }
-        
-        .answer-option.incorrect {
-            border-color: #dc3545;
-            background: #f8d7da;
-        }
-        
-        .maintenance-schedule {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin: 20px 0;
-        }
-        
-        .maintenance-task {
-            background: white;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            padding: 20px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        
-        .maintenance-task:hover {
-            border-color: #007bff;
-            transform: translateY(-2px);
-        }
-        
-        .maintenance-task.completed {
-            border-color: #28a745;
-            background: #e8f5e8;
-        }
-        
-        .alert {
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 8px;
-            border-left: 4px solid;
-        }
-        
-        .alert-success {
-            background: #d4edda;
-            border-color: #28a745;
-            color: #155724;
-        }
-        
-        .alert-warning {
-            background: #fff3cd;
-            border-color: #ffc107;
-            color: #856404;
-        }
-        
-        .alert-info {
-            background: #d1ecf1;
-            border-color: #17a2b8;
-            color: #0c5460;
-        }
-        
-        .alert-danger {
-            background: #f8d7da;
-            border-color: #dc3545;
-            color: #721c24;
-        }
-        
-        .final-grade-panel {
-            background: linear-gradient(145deg, #e3f2fd, #bbdefb);
-            border: 3px solid #2196f3;
-            border-radius: 15px;
-            padding: 25px;
-            margin: 20px 0;
-            text-align: center;
-        }
-        
-        .final-grade-panel h3 {
-            color: #1565c0;
-            margin-bottom: 15px;
-        }
-        
-        .grade-breakdown {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        
-        .grade-section {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            border-left: 4px solid #2196f3;
-        }
-        
-        .attempts-tracker {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            border-radius: 5px;
-            padding: 10px;
-            margin: 10px 0;
-            font-size: 0.9em;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <!-- Grade Tracker (Fixed Position) -->
-        <div class="grade-tracker" id="gradeTracker">
-            <h4>📊 Current Grade</h4>
-            <div class="grade-item">
-                <span>Hardware Selection:</span>
-                <span id="grade-hardware">-/20</span>
-            </div>
-            <div class="grade-item">
-                <span>Installation Order:</span>
-                <span id="grade-installation">-/30</span>
-            </div>
-            <div class="grade-item">
-                <span>Installation Quiz:</span>
-                <span id="grade-install-quiz">-/10</span>
-            </div>
-            <div class="grade-item">
-                <span>Storage Selection:</span>
-                <span id="grade-storage">-/15</span>
-            </div>
-            <div class="grade-item">
-                <span>Maintenance Tasks:</span>
-                <span id="grade-maintenance">-/15</span>
-            </div>
-            <div class="grade-item">
-                <span>Final Assessment:</span>
-                <span id="grade-assessment">-/10</span>
-            </div>
-            <div class="total-grade">
-                <span>Total Score:</span>
-                <span id="total-grade">0/100</span>
-            </div>
-            <button class="export-grade" onclick="exportGrade()">Export Grade</button>
-        </div>
-
-        <div class="header">
-            <h1>Virtual Server Hardware Laboratory</h1>
-            <h2>CC1.1: Install and maintain physical server hardware components</h2>
-            <p>Interactive simulation with comprehensive grading system</p>
-        </div>
-
-        <div class="lab-tabs">
-            <button class="tab-btn active" onclick="showTab('hardware-eval')">LO1.1.1: Hardware Evaluation</button>
-            <button class="tab-btn" onclick="showTab('storage-deploy')">LO1.1.2: Storage Solutions</button>
-            <button class="tab-btn" onclick="showTab('maintenance')">LO1.1.3: Maintenance Procedures</button>
-            <button class="tab-btn" onclick="showTab('assessment')">Assessment</button>
-        </div>
-
-        <!-- LO1.1.1: Hardware Evaluation Tab -->
-        <div id="hardware-eval" class="lab-content active">
-            <h3>LO1.1.1: Evaluate server hardware requirements including installation procedure</h3>
-            
-            <div class="task-panel">
-                <h4>Scenario: Small Business Web Server Deployment</h4>
-                <p>Your organization needs a new web server to handle 1000 concurrent users, host a database, and provide file sharing services. Evaluate hardware requirements and plan the installation.</p>
-            </div>
-
-            <div class="alert alert-info">
-                <strong>Grading:</strong> Hardware selection (20 points) + Installation sequence (30 points) + Knowledge quiz (10 points) = 60 points total
-            </div>
-
-            <h4>Available Server Configurations</h4>
-            <div class="attempts-tracker" id="hardware-attempts">
-                Attempts remaining: <strong>3</strong> | Points available: <strong>20</strong>
-            </div>
-            <div class="server-rack">
-                <div class="server-unit" onclick="selectServer(this, 'budget')">
-                    <h5>Budget Server (1U)</h5>
-                    <p><strong>CPU:</strong> Intel Xeon E-2234 (4 cores, 3.6GHz)</p>
-                    <p><strong>RAM:</strong> 16GB DDR4</p>
-                    <p><strong>Storage:</strong> 2x 1TB SATA HDD</p>
-                    <p><strong>Network:</strong> 2x 1GbE</p>
-                    <p><strong>Price:</strong> $2,500</p>
-                </div>
-                
-                <div class="server-unit" onclick="selectServer(this, 'performance')">
-                    <h5>Performance Server (2U)</h5>
-                    <p><strong>CPU:</strong> Intel Xeon Silver 4214 (12 cores, 2.2GHz)</p>
-                    <p><strong>RAM:</strong> 64GB DDR4</p>
-                    <p><strong>Storage:</strong> 4x 2TB SAS HDD + 2x 500GB SSD</p>
-                    <p><strong>Network:</strong> 4x 1GbE + 2x 10GbE</p>
-                    <p><strong>Price:</strong> $8,500</p>
-                </div>
-                
-                <div class="server-unit" onclick="selectServer(this, 'enterprise')">
-                    <h5>Enterprise Server (4U)</h5>
-                    <p><strong>CPU:</strong> 2x Intel Xeon Gold 6248 (20 cores each, 2.5GHz)</p>
-                    <p><strong>RAM:</strong> 256GB DDR4</p>
-                    <p><strong>Storage:</strong> 8x 4TB SAS HDD + 4x 1TB NVMe SSD</p>
-                    <p><strong>Network:</strong> 4x 10GbE + 2x 25GbE</p>
-                    <p><strong>Price:</strong> $25,000</p>
-                </div>
-            </div>
-
-            <div id="server-analysis" style="display: none;">
-                <h4>Hardware Analysis</h4>
-                <div id="analysis-result"></div>
-                <button class="btn" onclick="proceedToInstallation()">Proceed to Installation Planning</button>
-            </div>
-
-            <div id="installation-planning" style="display: none;">
-                <h4>Installation Procedure Planning</h4>
-                <div class="alert alert-warning">
-                    <strong>Challenge:</strong> Components must be installed in the correct order. Installing in the wrong sequence could damage hardware or require rework. Click components in the proper installation sequence.
-                </div>
-                
-                <div class="attempts-tracker" id="installation-attempts">
-                    Installation attempts: <strong>0</strong> | Incorrect attempts: <strong>0</strong> | Points available: <strong>30</strong>
-                </div>
-                
-                <div class="alert alert-info" id="current-step">
-                    <strong>Current Task:</strong> <span id="step-instruction">Select the foundation component that must be addressed before any other system elements can function</span>
-                </div>
-                
-                <div class="component-grid" id="component-container">
-                    <!-- Components will be populated here -->
-                </div>
-                
-                <div class="progress-bar">
-                    <div class="progress-fill" id="install-progress">0%</div>
-                </div>
-                
-                <div id="installation-quiz" style="display: none;">
-                    <h4>Installation Knowledge Check (10 points)</h4>
-                    <div class="quiz-container">
-                        <div class="attempts-tracker" id="quiz-attempts">
-                            Quiz attempts: <strong>0</strong> | Points available: <strong>10</strong>
-                        </div>
-                        <div class="question">
-                            <p><strong>Before proceeding, answer this question about your selected server:</strong></p>
-                            <p id="install-question">What is the most critical consideration when installing the CPU?</p>
-                            <div id="quiz-options">
-                                <!-- Options will be populated dynamically -->
-                            </div>
-                        </div>
-                        <button class="btn" onclick="submitInstallAnswer()" id="submit-install-btn" disabled>Submit Answer</button>
-                        <div id="install-feedback"></div>
-                    </div>
-                </div>
-                
-                <div class="simulation-log" id="install-log"></div>
-            </div>
-        </div>
-
-        <!-- LO1.1.2: Storage Solutions Tab -->
-        <div id="storage-deploy" class="lab-content">
-            <h3>LO1.1.2: Deploy appropriate storage solutions based on organizational needs</h3>
-            
-            <div class="task-panel">
-                <h4>Scenario: Database Server Storage Design</h4>
-                <p>Design a storage solution for a database server that requires high availability, fast performance, and data protection.</p>
-            </div>
-
-            <div class="alert alert-info">
-                <strong>Grading:</strong> Storage solution selection (15 points)
-            </div>
-
-            <h4>Storage Requirements Analysis</h4>
-            <div class="alert alert-info">
-                <strong>Requirements:</strong>
-                <ul>
-                    <li>High availability (99.9% uptime)</li>
-                    <li>Fast read/write performance for database operations</li>
-                    <li>Data redundancy and fault tolerance</li>
-                    <li>Capacity: 10TB usable storage</li>
-                    <li>Budget: $15,000 for storage subsystem</li>
-                </ul>
-            </div>
-
-            <h4>Select Data Protection Strategy</h4>
-            <div class="attempts-tracker" id="storage-attempts">
-                Attempts remaining: <strong>2</strong> | Points available: <strong>15</strong>
-            </div>
-            <div class="storage-config" id="storage-options">
-                <!-- RAID options will be populated here -->
-            </div>
-
-            <div id="raid-analysis" style="display: none;">
-                <h4>Storage Configuration Analysis</h4>
-                <div id="raid-result"></div>
-                <button class="btn" onclick="configureStorage()">Configure Storage Array</button>
-            </div>
-
-            <div id="storage-config-panel" style="display: none;">
-                <h4>Storage Array Configuration</h4>
-                <div class="alert alert-warning">
-                    <strong>Warning:</strong> This will initialize the storage array and erase all data. Ensure proper backup procedures are in place.
-                </div>
-                
-                <button class="btn" onclick="initializeArray()">Initialize Array</button>
-                <button class="btn warning" onclick="runStorageTest()">Run Performance Test</button>
-                <button class="btn success" onclick="completeStorageSetup()">Complete Setup</button>
-                
-                <div class="simulation-log" id="storage-log"></div>
-            </div>
-        </div>
-
-        <!-- LO1.1.3: Maintenance Procedures Tab -->
-        <div id="maintenance" class="lab-content">
-            <h3>LO1.1.3: Perform server hardware maintenance procedures</h3>
-            
-            <div class="task-panel">
-                <h4>Scenario: Scheduled Maintenance Window</h4>
-                <p>Perform routine maintenance on production servers during a scheduled maintenance window.</p>
-            </div>
-
-            <div class="alert alert-info">
-                <strong>Grading:</strong> Maintenance task completion (15 points total - efficiency and accuracy matter)
-            </div>
-
-            <h4>Server Status Overview</h4>
-            <div class="alert alert-info">
-                <strong>Instructions:</strong> Click on a server to view detailed status and available maintenance options.
-            </div>
-            <div class="server-rack" id="server-status-container">
-                <!-- Servers will be populated here -->
-            </div>
-
-            <div id="server-details" style="display: none;">
-                <h4>Selected Server Details</h4>
-                <div id="server-info"></div>
-                <button class="btn" onclick="beginMaintenance()">Begin Maintenance on Selected Server</button>
-            </div>
-
-            <h4>Maintenance Tasks</h4>
-            <div class="attempts-tracker" id="maintenance-attempts" style="display: none;">
-                Tasks completed: <strong>0/6</strong> | Efficiency bonus available | Points earned: <strong>0/15</strong>
-            </div>
-            <div class="alert alert-warning" id="maintenance-instructions">
-                <strong>Instructions:</strong> First select a server above, then click "Begin Maintenance" to unlock the maintenance tasks below.
-            </div>
-            <div class="maintenance-schedule" id="maintenance-tasks" style="opacity: 0.5; pointer-events: none;">
-                <!-- Maintenance tasks will be populated here -->
-            </div>
-
-            <div class="progress-bar">
-                <div class="progress-fill" id="maintenance-progress">0%</div>
-            </div>
-
-            <div class="simulation-log" id="maintenance-log"></div>
-
-            <div id="maintenance-results" style="display: none;">
-                <div class="alert alert-success">
-                    <strong>Maintenance Complete!</strong> All tasks have been completed successfully.
-                </div>
-                <button class="btn success" onclick="generateMaintenanceReport()">Generate Maintenance Report</button>
-            </div>
-        </div>
-
-        <!-- Assessment Tab -->
-        <div id="assessment" class="lab-content">
-            <h3>Competency Assessment - CC1.1 (10 points)</h3>
-            
-            <div class="alert alert-info">
-                <strong>Grading:</strong> Final assessment (10 points) - All questions must be answered correctly for full points
-            </div>
-
-            <div class="attempts-tracker" id="assessment-attempts">
-                Assessment attempts: <strong>0</strong> | Points available: <strong>10</strong>
-            </div>
-            
-            <div class="quiz-container">
-                <div class="question">
-                    <h4>Question 1: Hardware Requirements Analysis</h4>
-                    <p>A web application requires high availability and needs to handle 5000 concurrent users with database operations. Which server configuration would be most appropriate?</p>
-                    <label class="answer-option" onclick="selectAnswer(this, false)">
-                        <input type="radio" name="q1"> Budget server with basic CPU and minimal RAM
-                    </label>
-                    <label class="answer-option" onclick="selectAnswer(this, true)">
-                        <input type="radio" name="q1"> Performance server with multi-core CPU, adequate RAM, and redundant components
-                    </label>
-                    <label class="answer-option" onclick="selectAnswer(this, false)">
-                        <input type="radio" name="q1"> Single-purpose server optimized only for storage
-                    </label>
-                    <label class="answer-option" onclick="selectAnswer(this, false)">
-                        <input type="radio" name="q1"> Desktop computer with server software installed
-                    </label>
-                </div>
-
-                <div class="question">
-                    <h4>Question 2: RAID Configuration</h4>
-                    <p>For a database server requiring both high performance and fault tolerance, which RAID level provides the best balance?</p>
-                    <label class="answer-option" onclick="selectAnswer(this, false)">
-                        <input type="radio" name="q2"> RAID 0 - Maximum performance, no redundancy
-                    </label>
-                    <label class="answer-option" onclick="selectAnswer(this, true)">
-                        <input type="radio" name="q2"> RAID 10 - High performance with redundancy
-                    </label>
-                    <label class="answer-option" onclick="selectAnswer(this, false)">
-                        <input type="radio" name="q2"> RAID 5 - Good capacity utilization but poor write performance
-                    </label>
-                    <label class="answer-option" onclick="selectAnswer(this, false)">
-                        <input type="radio" name="q2"> No RAID - Individual drives for maximum capacity
-                    </label>
-                </div>
-
-                <div class="question">
-                    <h4>Question 3: Maintenance Procedures</h4>
-                    <p>During server maintenance, what is the correct order of operations?</p>
-                    <label class="answer-option" onclick="selectAnswer(this, true)">
-                        <input type="radio" name="q3"> Power down → Document current state → Perform maintenance → Test functionality → Update documentation
-                    </label>
-                    <label class="answer-option" onclick="selectAnswer(this, false)">
-                        <input type="radio" name="q3"> Perform maintenance → Power down → Test → Document
-                    </label>
-                    <label class="answer-option" onclick="selectAnswer(this, false)">
-                        <input type="radio" name="q3"> Hot-swap components without powering down
-                    </label>
-                    <label class="answer-option" onclick="selectAnswer(this, false)">
-                        <input type="radio" name="q3"> Test first → Maintenance → Power cycle → Document
-                    </label>
-                </div>
-
-                <button class="btn" onclick="gradeAssessment()">Submit Assessment</button>
-                <div id="assessment-results"></div>
-            </div>
-        </div>
-
-        <!-- Final Grade Summary -->
-        <div id="final-grade-summary" style="display: none;">
-            <div class="final-grade-panel">
-                <h3>🎓 Lab Completion Summary</h3>
-                <div class="grade-breakdown" id="grade-breakdown">
-                    <!-- Grade breakdown will be populated here -->
-                </div>
-                <div class="total-grade" style="font-size: 1.3em; color: #1565c0;">
-                    <strong>Final Grade: <span id="final-percentage">0</span>% (<span id="final-letter">F</span>)</strong>
-                </div>
-                <button class="btn success" onclick="exportFinalGrade()" style="margin-top: 15px;">Export
+</html>

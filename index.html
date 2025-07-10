@@ -1,9 +1,1216 @@
-<!DOCTYPE html>
+<button class="btn success" onclick="exportFinalGrade()" style="margin-top: 15px;">Export Final Grade</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Grading system variables
+        const gradingSystem = {
+            hardwareSelection: { max: 20, current: 0, attempts: 0, maxAttempts: 3 },
+            installationOrder: { max: 30, current: 0, attempts: 0, incorrectAttempts: 0 },
+            installationQuiz: { max: 10, current: 0, attempts: 0, maxAttempts: 3 },
+            storageSelection: { max: 15, current: 0, attempts: 0, maxAttempts: 2 },
+            maintenanceTasks: { max: 15, current: 0, tasksCompleted: 0, startTime: null },
+            finalAssessment: { max: 10, current: 0, attempts: 0, maxAttempts: 2 }
+        };
+
+        // Global variables
+        let currentTab = 'hardware-eval';
+        let selectedServer = null;
+        let selectedServerForMaintenance = null;
+        let selectedRAID = null;
+        let installProgress = 0;
+        let maintenanceProgress = 0;
+        let completedTasks = [];
+        let assessmentAnswers = {};
+        let maintenanceEnabled = false;
+        let expectedInstallStep = 1;
+        let installAnswerCorrect = false;
+        let installComplete = false;
+        let componentOrder = [];
+        let maintenanceTaskOrder = [];
+        let serverOrder = [];
+        let storageOrder = [];
+
+        // Component definitions (removed hints to avoid giving away answers)
+        const componentDefinitions = [
+            {
+                id: 'power',
+                order: 1,
+                title: 'Electrical Infrastructure Setup',
+                description: 'Establish stable electrical foundation for all system components',
+                message: '✅ Electrical infrastructure established - providing stable power distribution'
+            },
+            {
+                id: 'cpu',
+                order: 2,
+                title: 'Central Processing Unit Integration',
+                description: 'Install primary computational component with thermal management',
+                message: '✅ Central processing unit integrated with optimal thermal management'
+            },
+            {
+                id: 'memory',
+                order: 3,
+                title: 'Volatile Memory Module Installation',
+                description: 'Install high-speed temporary data storage modules',
+                message: '✅ Volatile memory modules optimally configured - POST validation successful'
+            },
+            {
+                id: 'storage',
+                order: 4,
+                title: 'Persistent Data Repository Setup',
+                description: 'Deploy drives and data management controllers',
+                message: '✅ Persistent data repositories configured - arrays initialized'
+            },
+            {
+                id: 'network',
+                order: 5,
+                title: 'Communication Interface Configuration',
+                description: 'Establish external connectivity and data transmission pathways',
+                message: '✅ Communication interfaces configured - connectivity established'
+            },
+            {
+                id: 'firmware',
+                order: 6,
+                title: 'System Configuration Interface',
+                description: 'Configure low-level system parameters and boot sequences',
+                message: '✅ System configuration interface optimized - boot sequences configured'
+            }
+        ];
+
+        // RAID definitions with randomized descriptive names
+        const raidDefinitions = [
+            {
+                id: 'raid0',
+                title: 'Performance-Optimized Striping',
+                performance: 'Excellent',
+                redundancy: 'None',
+                capacity: '100% of drives',
+                minDrives: '2',
+                points: 5, // Poor choice for database
+                analysis: {
+                    type: 'warning',
+                    content: `
+                        <p>❌ <strong>Fatal Flaw:</strong> No redundancy - single drive failure destroys all data</p>
+                        <p>❌ Does not meet high availability requirement</p>
+                        <p>✅ Excellent performance for read/write operations</p>
+                        <p><strong>Verdict:</strong> Unsuitable for production database server</p>
+                    `
+                }
+            },
+            {
+                id: 'raid1',
+                title: 'Synchronized Data Mirroring',
+                performance: 'Good read, average write',
+                redundancy: '1 drive failure',
+                capacity: '50% of drives',
+                minDrives: '2',
+                points: 10, // Acceptable choice
+                analysis: {
+                    type: 'info',
+                    content: `
+                        <p>✅ Provides data redundancy (1 drive failure tolerance)</p>
+                        <p>✅ Good read performance, average write performance</p>
+                        <p>⚠️ Only 50% capacity utilization - need 20TB raw for 10TB usable</p>
+                        <p><strong>Verdict:</strong> Good for small-scale database with limited write operations</p>
+                    `
+                }
+            },
+            {
+                id: 'raid5',
+                title: 'Distributed Parity Protection',
+                performance: 'Good read, poor write',
+                redundancy: '1 drive failure',
+                capacity: '(n-1)/n of drives',
+                minDrives: '3',
+                points: 8, // Poor for database writes
+                analysis: {
+                    type: 'warning',
+                    content: `
+                        <p>✅ Good capacity utilization (n-1)/n</p>
+                        <p>✅ Tolerates single drive failure</p>
+                        <p>❌ Poor write performance due to parity calculations</p>
+                        <p>❌ Long rebuild times with large drives</p>
+                        <p><strong>Verdict:</strong> Poor choice for write-intensive database operations</p>
+                    `
+                }
+            },
+            {
+                id: 'raid10',
+                title: 'High-Performance Redundant Arrays',
+                performance: 'Excellent',
+                redundancy: 'Multiple drive failures',
+                capacity: '50% of drives',
+                minDrives: '4',
+                points: 15, // Perfect choice
+                analysis: {
+                    type: 'success',
+                    content: `
+                        <p>✅ Excellent read and write performance</p>
+                        <p>✅ High fault tolerance (can lose multiple drives)</p>
+                        <p>✅ Fast rebuild times</p>
+                        <p>⚠️ 50% capacity utilization but meets performance needs</p>
+                        <p><strong>Verdict:</strong> Optimal choice for high-performance database server</p>
+                    `
+                }
+            }
+        ];
+
+        // Maintenance task definitions
+        const maintenanceDefinitions = [
+            {
+                id: 'hardware-check',
+                title: 'Component Integrity Verification',
+                description: 'Assess component health metrics, thermal readings, and operational status',
+                priority: 'High',
+                time: '15 minutes',
+                points: 3,
+                message: '✅ Component integrity verification completed - all systems within operational parameters'
+            },
+            {
+                id: 'disk-replacement',
+                title: 'Failed Component Replacement',
+                description: 'Replace deteriorating storage device showing error indicators',
+                priority: 'Critical',
+                time: '45 minutes',
+                points: 4,
+                message: '✅ Failed component replacement completed - array reconstruction successful'
+            },
+            {
+                id: 'firmware-update',
+                title: 'Low-Level Software Updates',
+                description: 'Apply latest system firmware and controller software patches',
+                priority: 'Medium',
+                time: '30 minutes',
+                points: 3,
+                message: '✅ Low-level software updates applied - system restart required'
+            },
+            {
+                id: 'cable-management',
+                title: 'Physical Connection Assessment',
+                description: 'Verify connection integrity and optimize airflow pathways',
+                priority: 'Low',
+                time: '20 minutes',
+                points: 2,
+                message: '✅ Physical connection assessment completed - airflow optimization verified'
+            },
+            {
+                id: 'cleaning',
+                title: 'Environmental Contamination Removal',
+                description: 'Remove particulate matter from components and airflow systems',
+                priority: 'Medium',
+                time: '25 minutes',
+                points: 2,
+                message: '✅ Environmental contamination removed from all system components'
+            },
+            {
+                id: 'documentation',
+                title: 'Asset Management Documentation',
+                description: 'Update system records and maintenance tracking databases',
+                priority: 'Medium',
+                time: '15 minutes',
+                points: 1,
+                message: '✅ Asset management documentation updated in tracking databases'
+            }
+        ];
+
+        // Server definitions
+        const serverDefinitions = [
+            {
+                id: 'web01',
+                title: 'Application Server 01',
+                status: 'online',
+                uptime: '127 days',
+                cpu: '68°C',
+                ram: '85%',
+                disk: 'Good',
+                info: {
+                    type: 'info',
+                    content: `
+                        <h5>Application Server 01 - Selected for Maintenance</h5>
+                        <p><strong>Status:</strong> Online - Ready for maintenance</p>
+                        <p><strong>Recommended Actions:</strong> Routine health check, cleaning, firmware updates</p>
+                        <p><strong>Downtime Impact:</strong> Medium - Load balancer will redirect traffic</p>
+                        <p><strong>Maintenance Window:</strong> 2 hours allocated</p>
+                    `
+                }
+            },
+            {
+                id: 'db01',
+                title: 'Data Management Server 01',
+                status: 'maintenance',
+                uptime: '89 days',
+                cpu: '72°C',
+                ram: '92%',
+                disk: 'Warning - SMART errors',
+                info: {
+                    type: 'warning',
+                    content: `
+                        <h5>Data Management Server 01 - Selected for Maintenance</h5>
+                        <p><strong>Status:</strong> Warning - SMART errors detected</p>
+                        <p><strong>Critical Actions:</strong> Immediate disk replacement required</p>
+                        <p><strong>Downtime Impact:</strong> High - Database will be offline during maintenance</p>
+                        <p><strong>Maintenance Window:</strong> 3 hours allocated</p>
+                    `
+                }
+            },
+            {
+                id: 'file01',
+                title: 'Document Repository System 01',
+                status: 'offline',
+                uptime: 'Maintenance Mode',
+                cpu: '2 hours ago',
+                ram: 'Fan replacement needed',
+                disk: '30 minutes',
+                info: {
+                    type: 'success',
+                    content: `
+                        <h5>Document Repository System 01 - Selected for Maintenance</h5>
+                        <p><strong>Status:</strong> Maintenance Mode - Safe to work on</p>
+                        <p><strong>Actions:</strong> Cooling system component replacement in progress</p>
+                        <p><strong>Downtime Impact:</strong> Low - Redundant file servers available</p>
+                        <p><strong>Maintenance Window:</strong> 1 hour remaining</p>
+                    `
+                }
+            }
+        ];
+
+        // Enhanced step instructions (without hints)
+        const stepInstructions = [
+            "Select the foundation component that must be addressed before any other system elements can function",
+            "Choose the primary computational element that requires direct motherboard access",
+            "Install the high-speed temporary storage that depends on the computational foundation",
+            "Configure the persistent data repositories that require electrical infrastructure",
+            "Establish the external communication pathways after physical infrastructure completion",
+            "Apply the final system-level configuration that requires all hardware components to be present"
+        ];
+
+        // Grading functions
+        function updateGradeDisplay() {
+            document.getElementById('grade-hardware').textContent = `${gradingSystem.hardwareSelection.current}/${gradingSystem.hardwareSelection.max}`;
+            document.getElementById('grade-installation').textContent = `${gradingSystem.installationOrder.current}/${gradingSystem.installationOrder.max}`;
+            document.getElementById('grade-install-quiz').textContent = `${gradingSystem.installationQuiz.current}/${gradingSystem.installationQuiz.max}`;
+            document.getElementById('grade-storage').textContent = `${gradingSystem.storageSelection.current}/${gradingSystem.storageSelection.max}`;
+            document.getElementById('grade-maintenance').textContent = `${gradingSystem.maintenanceTasks.current}/${gradingSystem.maintenanceTasks.max}`;
+            document.getElementById('grade-assessment').textContent = `${gradingSystem.finalAssessment.current}/${gradingSystem.finalAssessment.max}`;
+            
+            const total = Object.values(gradingSystem).reduce((sum, section) => sum + section.current, 0);
+            document.getElementById('total-grade').textContent = `${total}/100`;
+            
+            // Update grade item colors
+            Object.keys(gradingSystem).forEach((key, index) => {
+                const element = document.querySelectorAll('.grade-item')[index];
+                if (gradingSystem[key].current > 0) {
+                    element.classList.add('completed');
+                    element.classList.remove('failed');
+                }
+            });
+        }
+
+        function calculateLetterGrade(percentage) {
+            if (percentage >= 90) return 'A';
+            if (percentage >= 80) return 'B';
+            if (percentage >= 70) return 'C';
+            if (percentage >= 60) return 'D';
+            return 'F';
+        }
+
+        function exportGrade() {
+            const total = Object.values(gradingSystem).reduce((sum, section) => sum + section.current, 0);
+            const percentage = Math.round(total);
+            const letterGrade = calculateLetterGrade(percentage);
+            
+            const gradeData = {
+                studentName: prompt("Enter student name:", "Student"),
+                labTitle: "Virtual Server Hardware Lab - CC1.1",
+                date: new Date().toLocaleDateString(),
+                breakdown: {
+                    "Hardware Selection": `${gradingSystem.hardwareSelection.current}/${gradingSystem.hardwareSelection.max}`,
+                    "Installation Order": `${gradingSystem.installationOrder.current}/${gradingSystem.installationOrder.max}`,
+                    "Installation Quiz": `${gradingSystem.installationQuiz.current}/${gradingSystem.installationQuiz.max}`,
+                    "Storage Selection": `${gradingSystem.storageSelection.current}/${gradingSystem.storageSelection.max}`,
+                    "Maintenance Tasks": `${gradingSystem.maintenanceTasks.current}/${gradingSystem.maintenanceTasks.max}`,
+                    "Final Assessment": `${gradingSystem.finalAssessment.current}/${gradingSystem.finalAssessment.max}`
+                },
+                totalScore: `${total}/100`,
+                percentage: `${percentage}%`,
+                letterGrade: letterGrade,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Create downloadable file
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(gradeData, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `${gradeData.studentName}_ServerLab_Grade.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            
+            // Also show grade summary
+            showFinalGradeSummary();
+        }
+
+        function showFinalGradeSummary() {
+            const total = Object.values(gradingSystem).reduce((sum, section) => sum + section.current, 0);
+            const percentage = Math.round(total);
+            const letterGrade = calculateLetterGrade(percentage);
+            
+            document.getElementById('final-percentage').textContent = percentage;
+            document.getElementById('final-letter').textContent = letterGrade;
+            
+            const breakdown = document.getElementById('grade-breakdown');
+            breakdown.innerHTML = `
+                <div class="grade-section">
+                    <h5>Hardware Selection</h5>
+                    <p>${gradingSystem.hardwareSelection.current}/${gradingSystem.hardwareSelection.max} points</p>
+                    <small>Attempts: ${gradingSystem.hardwareSelection.attempts}/${gradingSystem.hardwareSelection.maxAttempts}</small>
+                </div>
+                <div class="grade-section">
+                    <h5>Installation Order</h5>
+                    <p>${gradingSystem.installationOrder.current}/${gradingSystem.installationOrder.max} points</p>
+                    <small>Incorrect attempts: ${gradingSystem.installationOrder.incorrectAttempts}</small>
+                </div>
+                <div class="grade-section">
+                    <h5>Installation Quiz</h5>
+                    <p>${gradingSystem.installationQuiz.current}/${gradingSystem.installationQuiz.max} points</p>
+                    <small>Attempts: ${gradingSystem.installationQuiz.attempts}</small>
+                </div>
+                <div class="grade-section">
+                    <h5>Storage Selection</h5>
+                    <p>${gradingSystem.storageSelection.current}/${gradingSystem.storageSelection.max} points</p>
+                    <small>Attempts: ${gradingSystem.storageSelection.attempts}/${gradingSystem.storageSelection.maxAttempts}</small>
+                </div>
+                <div class="grade-section">
+                    <h5>Maintenance Tasks</h5>
+                    <p>${gradingSystem.maintenanceTasks.current}/${gradingSystem.maintenanceTasks.max} points</p>
+                    <small>Tasks completed: ${gradingSystem.maintenanceTasks.tasksCompleted}/6</small>
+                </div>
+                <div class="grade-section">
+                    <h5>Final Assessment</h5>
+                    <p>${gradingSystem.finalAssessment.current}/${gradingSystem.finalAssessment.max} points</p>
+                    <small>Attempts: ${gradingSystem.finalAssessment.attempts}</small>
+                </div>
+            `;
+            
+            document.getElementById('final-grade-summary').style.display = 'block';
+        }
+
+        // Randomization functions
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        function initializeRandomizedContent() {
+            componentOrder = shuffleArray(componentDefinitions);
+            storageOrder = shuffleArray(raidDefinitions);
+            maintenanceTaskOrder = shuffleArray(maintenanceDefinitions);
+            serverOrder = shuffleArray(serverDefinitions);
+            
+            populateComponents();
+            populateStorageOptions();
+            populateMaintenanceTasks();
+            populateServers();
+        }
+
+        function populateComponents() {
+            const container = document.getElementById('component-container');
+            container.innerHTML = '';
+            
+            componentOrder.forEach(component => {
+                const div = document.createElement('div');
+                div.className = 'component';
+                div.onclick = () => installComponent(div, component.id);
+                div.setAttribute('data-order', component.order);
+                div.innerHTML = `
+                    <h5>${component.title}</h5>
+                    <p>${component.description}</p>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function populateStorageOptions() {
+            const container = document.getElementById('storage-options');
+            container.innerHTML = '';
+            
+            storageOrder.forEach(storage => {
+                const div = document.createElement('div');
+                div.className = 'raid-option';
+                div.onclick = () => selectRAID(div, storage.id);
+                div.innerHTML = `
+                    <h5>${storage.title}</h5>
+                    <p><strong>Performance:</strong> ${storage.performance}</p>
+                    <p><strong>Redundancy:</strong> ${storage.redundancy}</p>
+                    <p><strong>Capacity:</strong> ${storage.capacity}</p>
+                    <p><strong>Min Drives:</strong> ${storage.minDrives}</p>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function populateMaintenanceTasks() {
+            const container = document.getElementById('maintenance-tasks');
+            container.innerHTML = '';
+            
+            maintenanceTaskOrder.forEach(task => {
+                const div = document.createElement('div');
+                div.className = 'maintenance-task';
+                div.onclick = () => performMaintenance(div, task.id);
+                div.innerHTML = `
+                    <h5>${task.title}</h5>
+                    <p>${task.description}</p>
+                    <p><strong>Priority:</strong> ${task.priority}</p>
+                    <p><strong>Estimated Time:</strong> ${task.time}</p>
+                    <p><strong>Status:</strong> <span class="task-status">Pending</span></p>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function populateServers() {
+            const container = document.getElementById('server-status-container');
+            container.innerHTML = '';
+            
+            serverOrder.forEach(server => {
+                const div = document.createElement('div');
+                div.className = 'server-unit';
+                div.onclick = () => selectServerForMaintenance(div, server.id);
+                
+                let statusClass = 'status-' + server.status;
+                let statusContent = '';
+                
+                if (server.status === 'online') {
+                    statusContent = `
+                        <p><strong>Uptime:</strong> ${server.uptime}</p>
+                        <p><strong>CPU Temp:</strong> ${server.cpu}</p>
+                        <p><strong>RAM Usage:</strong> ${server.ram}</p>
+                        <p><strong>Disk Health:</strong> ${server.disk}</p>
+                    `;
+                } else if (server.status === 'maintenance') {
+                    statusContent = `
+                        <p><strong>Uptime:</strong> ${server.uptime}</p>
+                        <p><strong>CPU Temp:</strong> ${server.cpu}</p>
+                        <p><strong>RAM Usage:</strong> ${server.ram}</p>
+                        <p><strong>Disk Health:</strong> ${server.disk}</p>
+                    `;
+                } else {
+                    statusContent = `
+                        <p><strong>Status:</strong> ${server.uptime}</p>
+                        <p><strong>Last Boot:</strong> ${server.cpu}</p>
+                        <p><strong>Issues:</strong> ${server.ram}</p>
+                        <p><strong>ETA:</strong> ${server.disk}</p>
+                    `;
+                }
+                
+                div.innerHTML = `
+                    <h5><span class="status-indicator ${statusClass}"></span>${server.title}</h5>
+                    ${statusContent}
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // Tab switching functionality with completion tracking
+        function showTab(tabName) {
+            document.querySelectorAll('.lab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            currentTab = tabName;
+        }
+
+        // Server selection functionality with grading
+        function selectServer(element, serverType) {
+            // Check if already attempted max times
+            if (gradingSystem.hardwareSelection.attempts >= gradingSystem.hardwareSelection.maxAttempts) {
+                alert('Maximum attempts reached for hardware selection.');
+                return;
+            }
+
+            document.querySelectorAll('.server-unit').forEach(unit => {
+                unit.classList.remove('selected');
+            });
+            
+            element.classList.add('selected');
+            selectedServer = serverType;
+            gradingSystem.hardwareSelection.attempts++;
+            
+            const analysisDiv = document.getElementById('server-analysis');
+            const resultDiv = document.getElementById('analysis-result');
+            
+            let analysis = '';
+            let points = 0;
+            
+            switch(serverType) {
+                case 'budget':
+                    points = 5; // Poor choice
+                    analysis = `
+                        <div class="alert alert-warning">
+                            <strong>Analysis:</strong> Budget server may not meet performance requirements for 1000 concurrent users.
+                            <ul>
+                                <li>❌ CPU cores insufficient for high load</li>
+                                <li>❌ RAM may cause performance bottlenecks</li>
+                                <li>❌ Storage configuration lacks redundancy</li>
+                                <li>✅ Cost-effective for light workloads</li>
+                            </ul>
+                            <strong>Recommendation:</strong> Consider upgrading for production environment.
+                            <p><strong>Grade: ${points}/${gradingSystem.hardwareSelection.max} points</strong> - Inadequate for requirements</p>
+                        </div>
+                    `;
+                    break;
+                case 'performance':
+                    points = 20; // Perfect choice
+                    analysis = `
+                        <div class="alert alert-success">
+                            <strong>Analysis:</strong> Performance server meets requirements for the specified workload.
+                            <ul>
+                                <li>✅ Adequate CPU cores for concurrent users</li>
+                                <li>✅ Sufficient RAM for database operations</li>
+                                <li>✅ Hybrid storage provides good performance</li>
+                                <li>✅ Network capacity supports expected traffic</li>
+                            </ul>
+                            <strong>Recommendation:</strong> Optimal choice for this deployment.
+                            <p><strong>Grade: ${points}/${gradingSystem.hardwareSelection.max} points</strong> - Excellent selection!</p>
+                        </div>
+                    `;
+                    break;
+                case 'enterprise':
+                    points = 12; // Over-spec but functional
+                    analysis = `
+                        <div class="alert alert-info">
+                            <strong>Analysis:</strong> Enterprise server exceeds requirements but provides excellent scalability.
+                            <ul>
+                                <li>✅ High-performance dual CPUs handle heavy workloads</li>
+                                <li>✅ Large RAM capacity supports future growth</li>
+                                <li>✅ Enterprise storage with NVMe performance</li>
+                                <li>⚠️ Higher cost may exceed budget requirements</li>
+                            </ul>
+                            <strong>Recommendation:</strong> Future-proof solution if budget allows.
+                            <p><strong>Grade: ${points}/${gradingSystem.hardwareSelection.max} points</strong> - Over-specified but functional</p>
+                        </div>
+                    `;
+                    break;
+            }
+            
+            // Award points based on attempt number (penalty for multiple attempts)
+            if (gradingSystem.hardwareSelection.attempts === 1) {
+                gradingSystem.hardwareSelection.current = points;
+            } else if (gradingSystem.hardwareSelection.attempts === 2) {
+                gradingSystem.hardwareSelection.current = Math.round(points * 0.8);
+            } else {
+                gradingSystem.hardwareSelection.current = Math.round(points * 0.6);
+            }
+            
+            // Update attempts display
+            const attemptsRemaining = gradingSystem.hardwareSelection.maxAttempts - gradingSystem.hardwareSelection.attempts;
+            document.getElementById('hardware-attempts').innerHTML = `
+                Attempts remaining: <strong>${attemptsRemaining}</strong> | Points earned: <strong>${gradingSystem.hardwareSelection.current}/${gradingSystem.hardwareSelection.max}</strong>
+            `;
+            
+            resultDiv.innerHTML = analysis;
+            analysisDiv.style.display = 'block';
+            updateGradeDisplay();
+            
+            // Mark tab as completed if good choice
+            if (points >= 12) {
+                document.querySelector('[onclick="showTab(\'hardware-eval\')"]').classList.add('completed');
+            }
+        }
+
+        function proceedToInstallation() {
+            if (!selectedServer) {
+                alert('Please select a server configuration first.');
+                return;
+            }
+            document.getElementById('installation-planning').style.display = 'block';
+            logInstallation('Starting server installation procedure...');
+        }
+
+        // Installation functionality with detailed grading
+        function installComponent(element, componentType) {
+            if (element.classList.contains('installed')) {
+                logInstallation('⚠️ Component already installed.');
+                return;
+            }
+            
+            const component = componentDefinitions.find(c => c.id === componentType);
+            const componentOrder = component.order;
+            
+            gradingSystem.installationOrder.attempts++;
+            
+            if (componentOrder !== expectedInstallStep) {
+                element.style.border = '3px solid #dc3545';
+                element.style.background = '#f8d7da';
+                
+                gradingSystem.installationOrder.incorrectAttempts++;
+                
+                let correctNext = componentDefinitions.find(c => c.order === expectedInstallStep);
+                
+                logInstallation(`❌ INCORRECT ORDER: ${component.title} cannot be installed at this step.`);
+                logInstallation(`⚠️ You must complete ${correctNext.title} first (Step ${expectedInstallStep}).`);
+                logInstallation('📚 Proper installation sequence prevents damage and ensures functionality.');
+                
+                // Update attempts display
+                document.getElementById('installation-attempts').innerHTML = `
+                    Installation attempts: <strong>${gradingSystem.installationOrder.attempts}</strong> | 
+                    Incorrect attempts: <strong>${gradingSystem.installationOrder.incorrectAttempts}</strong> | 
+                    Points available: <strong>${Math.max(0, gradingSystem.installationOrder.max - (gradingSystem.installationOrder.incorrectAttempts * 5))}</strong>
+                `;
+                
+                setTimeout(() => {
+                    element.style.border = '';
+                    element.style.background = '';
+                }, 2000);
+                return;
+            }
+            
+            // Correct installation
+            element.classList.add('installed');
+            element.style.border = '3px solid #28a745';
+            installProgress += 16.67;
+            expectedInstallStep++;
+            
+            const progressBar = document.getElementById('install-progress');
+            progressBar.style.width = Math.round(installProgress) + '%';
+            progressBar.textContent = Math.round(installProgress) + '%';
+            
+            logInstallation(component.message);
+            
+            const stepInstruction = document.getElementById('step-instruction');
+            if (expectedInstallStep <= 6) {
+                stepInstruction.textContent = stepInstructions[expectedInstallStep - 1];
+            } else {
+                stepInstruction.textContent = 'All components installed - ready for knowledge verification';
+                document.getElementById('current-step').className = 'alert alert-success';
+                
+                // Calculate installation points (max 30, minus 5 for each incorrect attempt)
+                gradingSystem.installationOrder.current = Math.max(0, gradingSystem.installationOrder.max - (gradingSystem.installationOrder.incorrectAttempts * 5));
+                updateGradeDisplay();
+            }
+            
+            // Update attempts display
+            document.getElementById('installation-attempts').innerHTML = `
+                Installation attempts: <strong>${gradingSystem.installationOrder.attempts}</strong> | 
+                Incorrect attempts: <strong>${gradingSystem.installationOrder.incorrectAttempts}</strong> | 
+                Points earned: <strong>${gradingSystem.installationOrder.current}/${gradingSystem.installationOrder.max}</strong>
+            `;
+            
+            if (installProgress >= 100) {
+                logInstallation('');
+                logInstallation('🎉 Hardware installation completed in correct sequence!');
+                logInstallation('⚡ System ready for POST (Power-On Self Test)');
+                logInstallation('📋 Proceeding to installation knowledge verification...');
+                
+                setTimeout(() => {
+                    document.getElementById('installation-quiz').style.display = 'block';
+                    updateInstallQuestion();
+                }, 1500);
+            }
+        }
+
+        function updateInstallQuestion() {
+            const questions = [
+                {
+                    question: "Why must electrical infrastructure be established before other components?",
+                    answers: [
+                        { text: "Components are too heavy to install first", correct: false },
+                        { text: "All system elements require stable power to function safely", correct: true },
+                        { text: "Electrical systems need the most mounting hardware", correct: false },
+                        { text: "Power systems generate the most operational heat", correct: false }
+                    ]
+                },
+                {
+                    question: "What is the most critical consideration when installing processing components?",
+                    answers: [
+                        { text: "Apply maximum pressure to ensure contact", correct: false },
+                        { text: "Apply thermal interface material and ensure proper cooling", correct: true },
+                        { text: "Install memory first to test compatibility", correct: false },
+                        { text: "Connect power cables before seating processor", correct: false }
+                    ]
+                },
+                {
+                    question: "Why should system configuration be performed after all hardware installation?",
+                    answers: [
+                        { text: "It requires the least technical expertise", correct: false },
+                        { text: "All hardware must be present for proper detection and optimization", correct: true },
+                        { text: "Configuration can be completed remotely", correct: false },
+                        { text: "Firmware settings don't affect system performance", correct: false }
+                    ]
+                }
+            ];
+            
+            const randomQ = questions[Math.floor(Math.random() * questions.length)];
+            const questionElement = document.getElementById('install-question');
+            questionElement.textContent = randomQ.question;
+            
+            const optionsContainer = document.getElementById('quiz-options');
+            optionsContainer.innerHTML = '';
+            
+            randomQ.answers.forEach((answer, index) => {
+                const label = document.createElement('label');
+                label.className = 'answer-option';
+                label.onclick = () => selectInstallAnswer(label, answer.correct);
+                label.innerHTML = `
+                    <input type="radio" name="install-q"> ${answer.text}
+                `;
+                optionsContainer.appendChild(label);
+            });
+        }
+
+        function selectInstallAnswer(element, isCorrect) {
+            document.querySelectorAll('#quiz-options .answer-option').forEach(option => {
+                option.classList.remove('correct', 'incorrect');
+                option.style.pointerEvents = 'none';
+            });
+            
+            element.querySelector('input').checked = true;
+            installAnswerCorrect = isCorrect;
+            
+            if (isCorrect) {
+                element.classList.add('correct');
+            } else {
+                element.classList.add('incorrect');
+            }
+            
+            document.getElementById('submit-install-btn').disabled = false;
+        }
+
+        function submitInstallAnswer() {
+            if (gradingSystem.installationQuiz.attempts >= gradingSystem.installationQuiz.maxAttempts) {
+                alert('Maximum quiz attempts reached.');
+                return;
+            }
+
+            gradingSystem.installationQuiz.attempts++;
+            const feedbackDiv = document.getElementById('install-feedback');
+            
+            if (installAnswerCorrect) {
+                // Award points based on attempt number
+                if (gradingSystem.installationQuiz.attempts === 1) {
+                    gradingSystem.installationQuiz.current = 10;
+                } else if (gradingSystem.installationQuiz.attempts === 2) {
+                    gradingSystem.installationQuiz.current = 7;
+                } else {
+                    gradingSystem.installationQuiz.current = 5;
+                }
+                
+                feedbackDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <strong>Correct!</strong> You understand proper installation procedures. 
+                        <p><strong>Points earned: ${gradingSystem.installationQuiz.current}/${gradingSystem.installationQuiz.max}</strong></p>
+                        The server hardware installation is complete and ready for OS deployment.
+                    </div>
+                `;
+                logInstallation('✅ Knowledge verification passed - installation procedure mastered');
+                logInstallation('🚀 Server ready for operating system installation');
+                installComplete = true;
+                updateGradeDisplay();
+            } else {
+                const attemptsLeft = gradingSystem.installationQuiz.maxAttempts - gradingSystem.installationQuiz.attempts;
+                if (attemptsLeft > 0) {
+                    feedbackDiv.innerHTML = `
+                        <div class="alert alert-warning">
+                            <strong>Incorrect.</strong> Review installation best practices. 
+                            <p>Attempts remaining: <strong>${attemptsLeft}</strong></p>
+                            <button class="btn warning" onclick="retryInstallQuestion()">Try Another Question</button>
+                        </div>
+                    `;
+                } else {
+                    feedbackDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <strong>Quiz Failed.</strong> Maximum attempts reached. 
+                            <p><strong>Points earned: 0/${gradingSystem.installationQuiz.max}</strong></p>
+                            Review installation procedures before proceeding.
+                        </div>
+                    `;
+                    gradingSystem.installationQuiz.current = 0;
+                    updateGradeDisplay();
+                }
+                logInstallation('❌ Knowledge verification failed - review installation procedures');
+            }
+
+            // Update quiz attempts display
+            document.getElementById('quiz-attempts').innerHTML = `
+                Quiz attempts: <strong>${gradingSystem.installationQuiz.attempts}</strong> | 
+                Points earned: <strong>${gradingSystem.installationQuiz.current}/${gradingSystem.installationQuiz.max}</strong>
+            `;
+        }
+
+        function retryInstallQuestion() {
+            document.getElementById('install-feedback').innerHTML = '';
+            document.getElementById('submit-install-btn').disabled = true;
+            updateInstallQuestion();
+        }
+
+        // Storage functionality with grading
+        function selectRAID(element, raidType) {
+            if (gradingSystem.storageSelection.attempts >= gradingSystem.storageSelection.maxAttempts) {
+                alert('Maximum attempts reached for storage selection.');
+                return;
+            }
+
+            document.querySelectorAll('.raid-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            element.classList.add('selected');
+            selectedRAID = raidType;
+            gradingSystem.storageSelection.attempts++;
+            
+            const analysisDiv = document.getElementById('raid-analysis');
+            const resultDiv = document.getElementById('raid-result');
+            
+            const raidInfo = raidDefinitions.find(r => r.id === raidType);
+            
+            // Award points based on choice and attempt number
+            let basePoints = raidInfo.points;
+            if (gradingSystem.storageSelection.attempts === 1) {
+                gradingSystem.storageSelection.current = basePoints;
+            } else {
+                gradingSystem.storageSelection.current = Math.round(basePoints * 0.7);
+            }
+            
+            resultDiv.innerHTML = `
+                <div class="alert alert-${raidInfo.analysis.type}">
+                    <strong>${raidInfo.title} Analysis:</strong>
+                    ${raidInfo.analysis.content}
+                    <p><strong>Grade: ${gradingSystem.storageSelection.current}/${gradingSystem.storageSelection.max} points</strong></p>
+                </div>
+            `;
+            
+            // Update attempts display
+            const attemptsRemaining = gradingSystem.storageSelection.maxAttempts - gradingSystem.storageSelection.attempts;
+            document.getElementById('storage-attempts').innerHTML = `
+                Attempts remaining: <strong>${attemptsRemaining}</strong> | 
+                Points earned: <strong>${gradingSystem.storageSelection.current}/${gradingSystem.storageSelection.max}</strong>
+            `;
+            
+            analysisDiv.style.display = 'block';
+            updateGradeDisplay();
+            
+            // Mark tab as completed if good choice
+            if (basePoints >= 10) {
+                document.querySelector('[onclick="showTab(\'storage-deploy\')"]').classList.add('completed');
+            }
+        }
+
+        function configureStorage() {
+            document.getElementById('storage-config-panel').style.display = 'block';
+            logStorage('Storage configuration panel opened...');
+        }
+
+        function initializeArray() {
+            logStorage('⚠️ WARNING: Initializing storage array...');
+            logStorage('Creating partitions and formatting drives...');
+            setTimeout(() => {
+                logStorage('✅ Array initialization completed successfully');
+                logStorage(`${selectedRAID.toUpperCase()} array created with optimized drive configuration`);
+            }, 2000);
+        }
+
+        function runStorageTest() {
+            logStorage('Running storage performance benchmarks...');
+            logStorage('Sequential Read Test: 850 MB/s');
+            logStorage('Sequential Write Test: 720 MB/s');
+            logStorage('Random Read IOPS: 15,000');
+            logStorage('Random Write IOPS: 12,000');
+            logStorage('✅ Performance benchmarks completed - results within expected parameters');
+        }
+
+        function completeStorageSetup() {
+            logStorage('Finalizing storage deployment...');
+            logStorage('Configuring monitoring and alert systems...');
+            logStorage('✅ Storage deployment completed successfully!');
+            logStorage('Array is ready for production operations.');
+        }
+
+        // Maintenance functionality with grading
+        function selectServerForMaintenance(element, serverId) {
+            document.querySelectorAll('.server-unit').forEach(unit => {
+                unit.classList.remove('selected');
+            });
+            
+            element.classList.add('selected');
+            selectedServerForMaintenance = serverId;
+            
+            const detailsDiv = document.getElementById('server-details');
+            const infoDiv = document.getElementById('server-info');
+            
+            const serverInfo = serverDefinitions.find(s => s.id === serverId);
+            
+            infoDiv.innerHTML = `
+                <div class="alert alert-${serverInfo.info.type}">
+                    ${serverInfo.info.content}
+                </div>
+            `;
+            
+            detailsDiv.style.display = 'block';
+        }
+
+        function beginMaintenance() {
+            if (!selectedServerForMaintenance) {
+                alert('Please select a server first.');
+                return;
+            }
+            
+            maintenanceEnabled = true;
+            gradingSystem.maintenanceTasks.startTime = Date.now();
+            const tasksDiv = document.getElementById('maintenance-tasks');
+            const instructionsDiv = document.getElementById('maintenance-instructions');
+            
+            tasksDiv.style.opacity = '1';
+            tasksDiv.style.pointerEvents = 'auto';
+            
+            instructionsDiv.innerHTML = `
+                <strong>Maintenance Active:</strong> Click on maintenance tasks to perform them. 
+                Order matters for efficiency points!
+            `;
+            instructionsDiv.className = 'alert alert-success';
+            
+            // Show maintenance attempts tracker
+            document.getElementById('maintenance-attempts').style.display = 'block';
+            
+            logMaintenance(`🔧 Beginning maintenance on ${selectedServerForMaintenance.toUpperCase()}`);
+            logMaintenance('Maintenance tasks are now available. Click on tasks to complete them.');
+        }
+
+        function performMaintenance(element, taskType) {
+            if (!maintenanceEnabled) {
+                alert('Please select a server and click "Begin Maintenance" first.');
+                return;
+            }
+            
+            if (element.classList.contains('completed')) {
+                logMaintenance(`⚠️ Task "${taskType}" already completed.`);
+                return;
+            }
+            
+            element.classList.add('completed');
+            const statusSpan = element.querySelector('.task-status');
+            statusSpan.textContent = 'Completed';
+            statusSpan.style.color = '#28a745';
+            statusSpan.style.fontWeight = 'bold';
+            
+            completedTasks.push(taskType);
+            gradingSystem.maintenanceTasks.tasksCompleted++;
+            
+            const task = maintenanceDefinitions.find(t => t.id === taskType);
+            
+            // Award points based on task priority and completion order
+            let taskPoints = task.points;
+            
+            // Bonus for completing critical tasks first
+            if (task.priority === 'Critical' && completedTasks.length <= 2) {
+                taskPoints += 1; // Bonus for early critical task completion
+            }
+            
+            gradingSystem.maintenanceTasks.current += taskPoints;
+            
+            maintenanceProgress = (completedTasks.length / 6) * 100;
+            
+            const progressBar = document.getElementById('maintenance-progress');
+            progressBar.style.width = maintenanceProgress + '%';
+            progressBar.textContent = Math.round(maintenanceProgress) + '%';
+            
+            logMaintenance(`${task.message} (${task.time}) [+${taskPoints} points]`);
+            
+            // Update maintenance attempts display
+            document.getElementById('maintenance-attempts').innerHTML = `
+                Tasks completed: <strong>${gradingSystem.maintenanceTasks.tasksCompleted}/6</strong> | 
+                Points earned: <strong>${gradingSystem.maintenanceTasks.current}/${gradingSystem.maintenanceTasks.max}</strong>
+            `;
+            
+            updateGradeDisplay();
+            
+            if (completedTasks.length === 6) {
+                // Time bonus calculation
+                const endTime = Date.now();
+                const totalTimeMinutes = (endTime - gradingSystem.maintenanceTasks.startTime) / (1000 * 60);
+                let timeBonus = 0;
+                
+                if (totalTimeMinutes < 10) { // Very efficient
+                    timeBonus = 2;
+                } else if (totalTimeMinutes < 15) { // Efficient
+                    timeBonus = 1;
+                }
+                
+                gradingSystem.maintenanceTasks.current = Math.min(gradingSystem.maintenanceTasks.max, gradingSystem.maintenanceTasks.current + timeBonus);
+                
+                logMaintenance('');
+                logMaintenance('🎉 All maintenance procedures completed successfully!');
+                logMaintenance(`Total time: ${Math.round(totalTimeMinutes)} minutes`);
+                if (timeBonus > 0) {
+                    logMaintenance(`⚡ Efficiency bonus: +${timeBonus} points`);
+                }
+                logMaintenance('Systems are ready to return to production status.');
+                
+                document.getElementById('maintenance-results').style.display = 'block';
+                document.querySelector('[onclick="showTab(\'maintenance\')"]').classList.add('completed');
+                updateGradeDisplay();
+            }
+        }
+
+        function generateMaintenanceReport() {
+            logMaintenance('');
+            logMaintenance('=== MAINTENANCE REPORT ===');
+            logMaintenance('Maintenance Window: ' + new Date().toLocaleDateString());
+            logMaintenance(`Final Score: ${gradingSystem.maintenanceTasks.current}/${gradingSystem.maintenanceTasks.max} points`);
+            logMaintenance('Tasks Completed: 6/6');
+            logMaintenance('Systems Status: All Online');
+            logMaintenance('Next Scheduled Maintenance: ' + new Date(Date.now() + 30*24*60*60*1000).toLocaleDateString());
+            logMaintenance('Report generated and distributed to management.');
+        }
+
+        // Assessment functionality with grading
+        function selectAnswer(element, isCorrect) {
+            const questionName = element.querySelector('input').name;
+            
+            document.querySelectorAll(`input[name="${questionName}"]`).forEach(input => {
+                input.closest('.answer-option').classList.remove('correct', 'incorrect');
+            });
+            
+            assessmentAnswers[questionName] = isCorrect;
+            
+            if (isCorrect) {
+                element.classList.add('correct');
+            } else {
+                element.classList.add('incorrect');
+            }
+        }
+
+        function gradeAssessment() {
+            if (gradingSystem.finalAssessment.attempts >= gradingSystem.finalAssessment.maxAttempts) {
+                alert('Maximum assessment attempts reached.');
+                return;
+            }
+
+            gradingSystem.finalAssessment.attempts++;
+            
+            const totalQuestions = 3;
+            const correctAnswers = Object.values(assessmentAnswers).filter(answer => answer === true).length;
+            const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+            
+            // Award points based on percentage and attempt number
+            let basePoints = Math.round((correctAnswers / totalQuestions) * gradingSystem.finalAssessment.max);
+            if (gradingSystem.finalAssessment.attempts === 1) {
+                gradingSystem.finalAssessment.current = basePoints;
+            } else {
+                gradingSystem.finalAssessment.current = Math.round(basePoints * 0.8);
+            }
+            
+            let grade = '';
+            let feedback = '';
+            
+            if (percentage >= 90) {
+                grade = 'Excellent (A)';
+                feedback = 'Outstanding performance! You demonstrate mastery of server hardware concepts.';
+            } else if (percentage >= 80) {
+                grade = 'Good (B)';
+                feedback = 'Good understanding. Review areas where incorrect answers were selected.';
+            } else if (percentage >= 70) {
+                grade = 'Satisfactory (C)';
+                feedback = 'Basic understanding demonstrated. Additional study recommended.';
+            } else {
+                grade = 'Needs Improvement';
+                feedback = 'Significant gaps in understanding. Please review course materials.';
+            }
+            
+            const resultsDiv = document.getElementById('assessment-results');
+            resultsDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <h4>Assessment Results</h4>
+                    <p><strong>Score:</strong> ${correctAnswers}/${totalQuestions} (${percentage}%)</p>
+                    <p><strong>Grade:</strong> ${grade}</p>
+                    <p><strong>Points Earned:</strong> ${gradingSystem.finalAssessment.current}/${gradingSystem.finalAssessment.max}</p>
+                    <p><strong>Feedback:</strong> ${feedback}</p>
+                </div>
+                
+                <div class="alert alert-success">
+                    <h4>Competency Evaluation - CC1.1</h4>
+                    <p><strong>LO1.1.1:</strong> ${assessmentAnswers.q1 ? '✅ Proficient' : '❌ Needs Development'} - Hardware Requirements Evaluation</p>
+                    <p><strong>LO1.1.2:</strong> ${assessmentAnswers.q2 ? '✅ Proficient' : '❌ Needs Development'} - Storage Solutions Deployment</p>
+                    <p><strong>LO1.1.3:</strong> ${assessmentAnswers.q3 ? '✅ Proficient' : '❌ Needs Development'} - Maintenance Procedures</p>
+                </div>
+            `;
+
+            // Update attempts display
+            const attemptsLeft = gradingSystem.finalAssessment.maxAttempts - gradingSystem.finalAssessment.attempts;
+            document.getElementById('assessment-attempts').innerHTML = `
+                Assessment attempts: <strong>${gradingSystem.finalAssessment.attempts}</strong> | 
+                Points earned: <strong>${gradingSystem.finalAssessment.current}/${gradingSystem.finalAssessment.max}</strong>
+                ${attemptsLeft > 0 ? ` | Attempts remaining: <strong>${attemptsLeft}</strong>` : ''}
+            `;
+
+            updateGradeDisplay();
+            
+            if (percentage >= 70) {
+                document.querySelector('[onclick="showTab(\'assessment\')"]').classList.add('completed');
+            }
+
+            // Check if lab is complete
+            const allSectionsCompleted = gradingSystem.hardwareSelection.current > 0 &&
+                                       gradingSystem.installationOrder.current > 0 &&
+                                       gradingSystem.storageSelection.current > 0 &&
+                                       gradingSystem.maintenanceTasks.current > 0 &&
+                                       gradingSystem.finalAssessment.current > 0;
+            
+            if (allSectionsCompleted) {
+                setTimeout(() => {
+                    alert('🎓 Lab Complete! Check your final grade and export your results.');
+                    showFinalGradeSummary();
+                }, 1000);
+            }
+        }
+
+        // Logging functions
+        function logInstallation(message) {
+            const log = document.getElementById('install-log');
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `[${timestamp}] ${message}\n`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function logStorage(message) {
+            const log = document.getElementById('storage-log');
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `[${timestamp}] ${message}\n`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function logMaintenance(message) {
+            const log = document.getElementById('maintenance-log');
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `[${timestamp}] ${message}\n`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // Initialize the lab when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeRandomizedContent();
+            updateGradeDisplay();
+            logInstallation('Virtual Server Hardware Lab initialized successfully.');
+            logInstallation('Ready to begin hardware evaluation procedures.');
+        });
+    </script>
+</body>
+</html><!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Virtual Server Hardware Lab - CC1.1</title>
+    <title>Virtual Server Hardware Lab - CC1.1 (Graded)</title>
     <style>
         * {
             margin: 0;
@@ -34,6 +1241,66 @@
             backdrop-filter: blur(10px);
         }
         
+        .grade-tracker {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            min-width: 200px;
+        }
+        
+        .grade-tracker h4 {
+            color: #1e3c72;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #ff6b35;
+            padding-bottom: 5px;
+        }
+        
+        .grade-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 3px 0;
+        }
+        
+        .grade-item.completed {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .grade-item.failed {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .total-grade {
+            border-top: 2px solid #1e3c72;
+            margin-top: 10px;
+            padding-top: 8px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .export-grade {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        
+        .export-grade:hover {
+            background: #1e7e34;
+        }
+        
         .lab-tabs {
             display: flex;
             justify-content: center;
@@ -51,6 +1318,7 @@
             transition: all 0.3s ease;
             font-weight: bold;
             color: #1e3c72;
+            position: relative;
         }
         
         .tab-btn:hover {
@@ -62,6 +1330,22 @@
         .tab-btn.active {
             background: #ff6b35;
             color: white;
+        }
+        
+        .tab-btn.completed::after {
+            content: "✓";
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #28a745;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
         }
         
         .lab-content {
@@ -295,6 +1579,12 @@
             border-radius: 10px;
             padding: 20px;
             transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .maintenance-task:hover {
+            border-color: #007bff;
+            transform: translateY(-2px);
         }
         
         .maintenance-task.completed {
@@ -326,14 +1616,91 @@
             border-color: #17a2b8;
             color: #0c5460;
         }
+        
+        .alert-danger {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        
+        .final-grade-panel {
+            background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+            border: 3px solid #2196f3;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .final-grade-panel h3 {
+            color: #1565c0;
+            margin-bottom: 15px;
+        }
+        
+        .grade-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .grade-section {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .attempts-tracker {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Grade Tracker (Fixed Position) -->
+        <div class="grade-tracker" id="gradeTracker">
+            <h4>📊 Current Grade</h4>
+            <div class="grade-item">
+                <span>Hardware Selection:</span>
+                <span id="grade-hardware">-/20</span>
+            </div>
+            <div class="grade-item">
+                <span>Installation Order:</span>
+                <span id="grade-installation">-/30</span>
+            </div>
+            <div class="grade-item">
+                <span>Installation Quiz:</span>
+                <span id="grade-install-quiz">-/10</span>
+            </div>
+            <div class="grade-item">
+                <span>Storage Selection:</span>
+                <span id="grade-storage">-/15</span>
+            </div>
+            <div class="grade-item">
+                <span>Maintenance Tasks:</span>
+                <span id="grade-maintenance">-/15</span>
+            </div>
+            <div class="grade-item">
+                <span>Final Assessment:</span>
+                <span id="grade-assessment">-/10</span>
+            </div>
+            <div class="total-grade">
+                <span>Total Score:</span>
+                <span id="total-grade">0/100</span>
+            </div>
+            <button class="export-grade" onclick="exportGrade()">Export Grade</button>
+        </div>
+
         <div class="header">
             <h1>Virtual Server Hardware Laboratory</h1>
             <h2>CC1.1: Install and maintain physical server hardware components</h2>
-            <p>Interactive simulation covering hardware evaluation, storage deployment, and maintenance procedures</p>
+            <p>Interactive simulation with comprehensive grading system</p>
         </div>
 
         <div class="lab-tabs">
@@ -353,10 +1720,13 @@
             </div>
 
             <div class="alert alert-info">
-                <strong>Task:</strong> Select appropriate hardware components based on the given requirements.
+                <strong>Grading:</strong> Hardware selection (20 points) + Installation sequence (30 points) + Knowledge quiz (10 points) = 60 points total
             </div>
 
             <h4>Available Server Configurations</h4>
+            <div class="attempts-tracker" id="hardware-attempts">
+                Attempts remaining: <strong>3</strong> | Points available: <strong>20</strong>
+            </div>
             <div class="server-rack">
                 <div class="server-unit" onclick="selectServer(this, 'budget')">
                     <h5>Budget Server (1U)</h5>
@@ -398,12 +1768,16 @@
                     <strong>Challenge:</strong> Components must be installed in the correct order. Installing in the wrong sequence could damage hardware or require rework. Click components in the proper installation sequence.
                 </div>
                 
+                <div class="attempts-tracker" id="installation-attempts">
+                    Installation attempts: <strong>0</strong> | Incorrect attempts: <strong>0</strong> | Points available: <strong>30</strong>
+                </div>
+                
                 <div class="alert alert-info" id="current-step">
                     <strong>Current Task:</strong> <span id="step-instruction">Select the foundation component that must be addressed before any other system elements can function</span>
                 </div>
                 
                 <div class="component-grid" id="component-container">
-                    <!-- Components will be randomized here -->
+                    <!-- Components will be populated here -->
                 </div>
                 
                 <div class="progress-bar">
@@ -411,8 +1785,11 @@
                 </div>
                 
                 <div id="installation-quiz" style="display: none;">
-                    <h4>Installation Knowledge Check</h4>
+                    <h4>Installation Knowledge Check (10 points)</h4>
                     <div class="quiz-container">
+                        <div class="attempts-tracker" id="quiz-attempts">
+                            Quiz attempts: <strong>0</strong> | Points available: <strong>10</strong>
+                        </div>
                         <div class="question">
                             <p><strong>Before proceeding, answer this question about your selected server:</strong></p>
                             <p id="install-question">What is the most critical consideration when installing the CPU?</p>
@@ -435,7 +1812,11 @@
             
             <div class="task-panel">
                 <h4>Scenario: Database Server Storage Design</h4>
-                <p>Design a storage solution for a database server that requires high availability, fast performance, and data protection. Consider different RAID levels and storage types.</p>
+                <p>Design a storage solution for a database server that requires high availability, fast performance, and data protection.</p>
+            </div>
+
+            <div class="alert alert-info">
+                <strong>Grading:</strong> Storage solution selection (15 points)
             </div>
 
             <h4>Storage Requirements Analysis</h4>
@@ -451,8 +1832,11 @@
             </div>
 
             <h4>Select Data Protection Strategy</h4>
+            <div class="attempts-tracker" id="storage-attempts">
+                Attempts remaining: <strong>2</strong> | Points available: <strong>15</strong>
+            </div>
             <div class="storage-config" id="storage-options">
-                <!-- RAID options will be randomized here -->
+                <!-- RAID options will be populated here -->
             </div>
 
             <div id="raid-analysis" style="display: none;">
@@ -481,7 +1865,11 @@
             
             <div class="task-panel">
                 <h4>Scenario: Scheduled Maintenance Window</h4>
-                <p>Perform routine maintenance on production servers during a scheduled maintenance window. Follow proper procedures to ensure minimal downtime and system integrity.</p>
+                <p>Perform routine maintenance on production servers during a scheduled maintenance window.</p>
+            </div>
+
+            <div class="alert alert-info">
+                <strong>Grading:</strong> Maintenance task completion (15 points total - efficiency and accuracy matter)
             </div>
 
             <h4>Server Status Overview</h4>
@@ -489,7 +1877,7 @@
                 <strong>Instructions:</strong> Click on a server to view detailed status and available maintenance options.
             </div>
             <div class="server-rack" id="server-status-container">
-                <!-- Servers will be randomized here -->
+                <!-- Servers will be populated here -->
             </div>
 
             <div id="server-details" style="display: none;">
@@ -499,11 +1887,14 @@
             </div>
 
             <h4>Maintenance Tasks</h4>
+            <div class="attempts-tracker" id="maintenance-attempts" style="display: none;">
+                Tasks completed: <strong>0/6</strong> | Efficiency bonus available | Points earned: <strong>0/15</strong>
+            </div>
             <div class="alert alert-warning" id="maintenance-instructions">
                 <strong>Instructions:</strong> First select a server above, then click "Begin Maintenance" to unlock the maintenance tasks below.
             </div>
             <div class="maintenance-schedule" id="maintenance-tasks" style="opacity: 0.5; pointer-events: none;">
-                <!-- Maintenance tasks will be randomized here -->
+                <!-- Maintenance tasks will be populated here -->
             </div>
 
             <div class="progress-bar">
@@ -514,7 +1905,7 @@
 
             <div id="maintenance-results" style="display: none;">
                 <div class="alert alert-success">
-                    <strong>Maintenance Complete!</strong> All tasks have been completed successfully. Systems are ready for production use.
+                    <strong>Maintenance Complete!</strong> All tasks have been completed successfully.
                 </div>
                 <button class="btn success" onclick="generateMaintenanceReport()">Generate Maintenance Report</button>
             </div>
@@ -522,7 +1913,15 @@
 
         <!-- Assessment Tab -->
         <div id="assessment" class="lab-content">
-            <h3>Competency Assessment - CC1.1</h3>
+            <h3>Competency Assessment - CC1.1 (10 points)</h3>
+            
+            <div class="alert alert-info">
+                <strong>Grading:</strong> Final assessment (10 points) - All questions must be answered correctly for full points
+            </div>
+
+            <div class="attempts-tracker" id="assessment-attempts">
+                Assessment attempts: <strong>0</strong> | Points available: <strong>10</strong>
+            </div>
             
             <div class="quiz-container">
                 <div class="question">
@@ -580,869 +1979,15 @@
                 <div id="assessment-results"></div>
             </div>
         </div>
-    </div>
 
-    <script>
-        let currentTab = 'hardware-eval';
-        let selectedServer = null;
-        let selectedServerForMaintenance = null;
-        let selectedRAID = null;
-        let installProgress = 0;
-        let maintenanceProgress = 0;
-        let completedTasks = [];
-        let assessmentAnswers = {};
-        let maintenanceEnabled = false;
-        let expectedInstallStep = 1;
-        let installAnswerCorrect = false;
-        let installComplete = false;
-        let componentOrder = [];
-        let maintenanceTaskOrder = [];
-        let serverOrder = [];
-        let storageOrder = [];
-
-        // Component definitions with randomized order and descriptive names
-        const componentDefinitions = [
-            {
-                id: 'power',
-                order: 1,
-                title: 'Electrical Infrastructure Setup',
-                description: 'Establish stable electrical foundation for all system components',
-                hint: 'Essential for energizing all other hardware elements',
-                message: '✅ Electrical infrastructure established - providing stable power distribution to all system components'
-            },
-            {
-                id: 'firmware',
-                order: 6,
-                title: 'System Configuration Interface',
-                description: 'Configure low-level system parameters and boot sequences',
-                hint: 'Requires all physical components to be present for detection',
-                message: '✅ System configuration interface optimized - boot sequences and hardware parameters configured'
-            },
-            {
-                id: 'cpu',
-                order: 2,
-                title: 'Central Processing Unit Integration',
-                description: 'Install primary computational component with thermal management',
-                hint: 'Requires accessible motherboard and thermal considerations',
-                message: '✅ Central processing unit integrated with optimal thermal management solution'
-            },
-            {
-                id: 'storage',
-                order: 4,
-                title: 'Persistent Data Repository Setup',
-                description: 'Deploy drives and data management controllers',
-                hint: 'Depends on electrical infrastructure being established',
-                message: '✅ Persistent data repositories configured with management controllers - arrays initialized'
-            },
-            {
-                id: 'memory',
-                order: 3,
-                title: 'Volatile Memory Module Installation',
-                description: 'Install high-speed temporary data storage modules',
-                hint: 'CPU must be present to determine optimal module placement',
-                message: '✅ Volatile memory modules optimally configured - POST validation successful'
-            },
-            {
-                id: 'network',
-                order: 5,
-                title: 'Communication Interface Configuration',
-                description: 'Establish external connectivity and data transmission pathways',
-                hint: 'Physical infrastructure must be complete before connectivity setup',
-                message: '✅ Communication interfaces configured - external connectivity pathways established'
-            }
-        ];
-
-        // RAID definitions with randomized descriptive names
-        const raidDefinitions = [
-            {
-                id: 'raid0',
-                title: 'Performance-Optimized Striping',
-                performance: 'Excellent',
-                redundancy: 'None',
-                capacity: '100% of drives',
-                minDrives: '2',
-                analysis: {
-                    type: 'warning',
-                    content: `
-                        <p>❌ <strong>Fatal Flaw:</strong> No redundancy - single drive failure destroys all data</p>
-                        <p>❌ Does not meet high availability requirement</p>
-                        <p>✅ Excellent performance for read/write operations</p>
-                        <p><strong>Verdict:</strong> Unsuitable for production database server</p>
-                    `
-                }
-            },
-            {
-                id: 'raid5',
-                title: 'Distributed Parity Protection',
-                performance: 'Good read, poor write',
-                redundancy: '1 drive failure',
-                capacity: '(n-1)/n of drives',
-                minDrives: '3',
-                analysis: {
-                    type: 'warning',
-                    content: `
-                        <p>✅ Good capacity utilization (n-1)/n</p>
-                        <p>✅ Tolerates single drive failure</p>
-                        <p>❌ Poor write performance due to parity calculations</p>
-                        <p>❌ Long rebuild times with large drives</p>
-                        <p><strong>Verdict:</strong> Poor choice for write-intensive database operations</p>
-                    `
-                }
-            },
-            {
-                id: 'raid1',
-                title: 'Synchronized Data Mirroring',
-                performance: 'Good read, average write',
-                redundancy: '1 drive failure',
-                capacity: '50% of drives',
-                minDrives: '2',
-                analysis: {
-                    type: 'info',
-                    content: `
-                        <p>✅ Provides data redundancy (1 drive failure tolerance)</p>
-                        <p>✅ Good read performance, average write performance</p>
-                        <p>⚠️ Only 50% capacity utilization - need 20TB raw for 10TB usable</p>
-                        <p><strong>Verdict:</strong> Good for small-scale database with limited write operations</p>
-                    `
-                }
-            },
-            {
-                id: 'raid10',
-                title: 'High-Performance Redundant Arrays',
-                performance: 'Excellent',
-                redundancy: 'Multiple drive failures',
-                capacity: '50% of drives',
-                minDrives: '4',
-                analysis: {
-                    type: 'success',
-                    content: `
-                        <p>✅ Excellent read and write performance</p>
-                        <p>✅ High fault tolerance (can lose multiple drives)</p>
-                        <p>✅ Fast rebuild times</p>
-                        <p>⚠️ 50% capacity utilization but meets performance needs</p>
-                        <p><strong>Verdict:</strong> Optimal choice for high-performance database server</p>
-                    `
-                }
-            }
-        ];
-
-        // Maintenance task definitions
-        const maintenanceDefinitions = [
-            {
-                id: 'documentation',
-                title: 'Asset Management Documentation',
-                description: 'Update system records and maintenance tracking databases',
-                priority: 'Medium',
-                time: '15 minutes',
-                message: '✅ Asset management documentation updated in tracking databases'
-            },
-            {
-                id: 'cleaning',
-                title: 'Environmental Contamination Removal',
-                description: 'Remove particulate matter from components and airflow systems',
-                priority: 'Medium',
-                time: '25 minutes',
-                message: '✅ Environmental contamination removed from all system components'
-            },
-            {
-                id: 'hardware-check',
-                title: 'Component Integrity Verification',
-                description: 'Assess component health metrics, thermal readings, and operational status',
-                priority: 'High',
-                time: '15 minutes',
-                message: '✅ Component integrity verification completed - all systems within operational parameters'
-            },
-            {
-                id: 'firmware-update',
-                title: 'Low-Level Software Updates',
-                description: 'Apply latest system firmware and controller software patches',
-                priority: 'Medium',
-                time: '30 minutes',
-                message: '✅ Low-level software updates applied - system restart required for activation'
-            },
-            {
-                id: 'cable-management',
-                title: 'Physical Connection Assessment',
-                description: 'Verify connection integrity and optimize airflow pathways',
-                priority: 'Low',
-                time: '20 minutes',
-                message: '✅ Physical connection assessment completed - airflow optimization verified'
-            },
-            {
-                id: 'disk-replacement',
-                title: 'Failed Component Replacement',
-                description: 'Replace deteriorating storage device showing error indicators',
-                priority: 'Critical',
-                time: '45 minutes',
-                message: '✅ Failed component replacement completed - array reconstruction successful'
-            }
-        ];
-
-        // Server definitions with randomized order
-        const serverDefinitions = [
-            {
-                id: 'file01',
-                title: 'Document Repository System 01',
-                status: 'offline',
-                uptime: 'Maintenance Mode',
-                cpu: '2 hours ago',
-                ram: 'Fan replacement needed',
-                disk: '30 minutes',
-                info: {
-                    type: 'success',
-                    content: `
-                        <h5>Document Repository System 01 - Selected for Maintenance</h5>
-                        <p><strong>Status:</strong> Maintenance Mode - Safe to work on</p>
-                        <p><strong>Actions:</strong> Cooling system component replacement in progress</p>
-                        <p><strong>Downtime Impact:</strong> Low - Redundant file servers available</p>
-                        <p><strong>Maintenance Window:</strong> 1 hour remaining</p>
-                    `
-                }
-            },
-            {
-                id: 'web01',
-                title: 'Application Server 01',
-                status: 'online',
-                uptime: '127 days',
-                cpu: '68°C',
-                ram: '85%',
-                disk: 'Good',
-                info: {
-                    type: 'info',
-                    content: `
-                        <h5>Application Server 01 - Selected for Maintenance</h5>
-                        <p><strong>Status:</strong> Online - Ready for maintenance</p>
-                        <p><strong>Recommended Actions:</strong> Routine health check, cleaning, firmware updates</p>
-                        <p><strong>Downtime Impact:</strong> Medium - Load balancer will redirect traffic</p>
-                        <p><strong>Maintenance Window:</strong> 2 hours allocated</p>
-                    `
-                }
-            },
-            {
-                id: 'db01',
-                title: 'Data Management Server 01',
-                status: 'maintenance',
-                uptime: '89 days',
-                cpu: '72°C',
-                ram: '92%',
-                disk: 'Warning - SMART errors',
-                info: {
-                    type: 'warning',
-                    content: `
-                        <h5>Data Management Server 01 - Selected for Maintenance</h5>
-                        <p><strong>Status:</strong> Warning - SMART errors detected</p>
-                        <p><strong>Critical Actions:</strong> Immediate disk replacement required</p>
-                        <p><strong>Downtime Impact:</strong> High - Database will be offline during maintenance</p>
-                        <p><strong>Maintenance Window:</strong> 3 hours allocated</p>
-                    `
-                }
-            }
-        ];
-
-        // Randomization functions
-        function shuffleArray(array) {
-            const shuffled = [...array];
-            for (let i = shuffled.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-            }
-            return shuffled;
-        }
-
-        function initializeRandomizedContent() {
-            // Randomize component order
-            componentOrder = shuffleArray(componentDefinitions);
-            
-            // Randomize storage options
-            storageOrder = shuffleArray(raidDefinitions);
-            
-            // Randomize maintenance tasks
-            maintenanceTaskOrder = shuffleArray(maintenanceDefinitions);
-            
-            // Randomize server order
-            serverOrder = shuffleArray(serverDefinitions);
-            
-            // Populate components
-            populateComponents();
-            populateStorageOptions();
-            populateMaintenanceTasks();
-            populateServers();
-        }
-
-        function populateComponents() {
-            const container = document.getElementById('component-container');
-            container.innerHTML = '';
-            
-            componentOrder.forEach(component => {
-                const div = document.createElement('div');
-                div.className = 'component';
-                div.onclick = () => installComponent(div, component.id);
-                div.setAttribute('data-order', component.order);
-                div.innerHTML = `
-                    <h5>${component.title}</h5>
-                    <p>${component.description}</p>
-                    <p><small><strong>Consider:</strong> ${component.hint}</small></p>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        function populateStorageOptions() {
-            const container = document.getElementById('storage-options');
-            container.innerHTML = '';
-            
-            storageOrder.forEach(storage => {
-                const div = document.createElement('div');
-                div.className = 'raid-option';
-                div.onclick = () => selectRAID(div, storage.id);
-                div.innerHTML = `
-                    <h5>${storage.title}</h5>
-                    <p><strong>Performance:</strong> ${storage.performance}</p>
-                    <p><strong>Redundancy:</strong> ${storage.redundancy}</p>
-                    <p><strong>Capacity:</strong> ${storage.capacity}</p>
-                    <p><strong>Min Drives:</strong> ${storage.minDrives}</p>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        function populateMaintenanceTasks() {
-            const container = document.getElementById('maintenance-tasks');
-            container.innerHTML = '';
-            
-            maintenanceTaskOrder.forEach(task => {
-                const div = document.createElement('div');
-                div.className = 'maintenance-task';
-                div.onclick = () => performMaintenance(div, task.id);
-                div.innerHTML = `
-                    <h5>${task.title}</h5>
-                    <p>${task.description}</p>
-                    <p><strong>Priority:</strong> ${task.priority}</p>
-                    <p><strong>Estimated Time:</strong> ${task.time}</p>
-                    <p><strong>Status:</strong> <span class="task-status">Pending</span></p>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        function populateServers() {
-            const container = document.getElementById('server-status-container');
-            container.innerHTML = '';
-            
-            serverOrder.forEach(server => {
-                const div = document.createElement('div');
-                div.className = 'server-unit';
-                div.onclick = () => selectServerForMaintenance(div, server.id);
-                
-                let statusClass = 'status-' + server.status;
-                let statusContent = '';
-                
-                if (server.status === 'online') {
-                    statusContent = `
-                        <p><strong>Uptime:</strong> ${server.uptime}</p>
-                        <p><strong>CPU Temp:</strong> ${server.cpu}</p>
-                        <p><strong>RAM Usage:</strong> ${server.ram}</p>
-                        <p><strong>Disk Health:</strong> ${server.disk}</p>
-                    `;
-                } else if (server.status === 'maintenance') {
-                    statusContent = `
-                        <p><strong>Uptime:</strong> ${server.uptime}</p>
-                        <p><strong>CPU Temp:</strong> ${server.cpu}</p>
-                        <p><strong>RAM Usage:</strong> ${server.ram}</p>
-                        <p><strong>Disk Health:</strong> ${server.disk}</p>
-                    `;
-                } else {
-                    statusContent = `
-                        <p><strong>Status:</strong> ${server.uptime}</p>
-                        <p><strong>Last Boot:</strong> ${server.cpu}</p>
-                        <p><strong>Issues:</strong> ${server.ram}</p>
-                        <p><strong>ETA:</strong> ${server.disk}</p>
-                    `;
-                }
-                
-                div.innerHTML = `
-                    <h5><span class="status-indicator ${statusClass}"></span>${server.title}</h5>
-                    ${statusContent}
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        // Enhanced step instructions
-        const stepInstructions = [
-            "Select the foundation component that must be addressed before any other system elements can function",
-            "Choose the primary computational element that requires direct motherboard access",
-            "Install the high-speed temporary storage that depends on the computational foundation",
-            "Configure the persistent data repositories that require electrical infrastructure",
-            "Establish the external communication pathways after physical infrastructure completion",
-            "Apply the final system-level configuration that requires all hardware components to be present"
-        ];
-
-        function showTab(tabName) {
-            document.querySelectorAll('.lab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
-            currentTab = tabName;
-        }
-
-        function selectServerForMaintenance(element, serverId) {
-            document.querySelectorAll('.server-unit').forEach(unit => {
-                unit.classList.remove('selected');
-            });
-            
-            element.classList.add('selected');
-            selectedServerForMaintenance = serverId;
-            
-            const detailsDiv = document.getElementById('server-details');
-            const infoDiv = document.getElementById('server-info');
-            
-            const serverInfo = serverDefinitions.find(s => s.id === serverId);
-            
-            infoDiv.innerHTML = `
-                <div class="alert alert-${serverInfo.info.type}">
-                    ${serverInfo.info.content}
+        <!-- Final Grade Summary -->
+        <div id="final-grade-summary" style="display: none;">
+            <div class="final-grade-panel">
+                <h3>🎓 Lab Completion Summary</h3>
+                <div class="grade-breakdown" id="grade-breakdown">
+                    <!-- Grade breakdown will be populated here -->
                 </div>
-            `;
-            
-            detailsDiv.style.display = 'block';
-        }
-
-        function beginMaintenance() {
-            if (!selectedServerForMaintenance) {
-                alert('Please select a server first.');
-                return;
-            }
-            
-            maintenanceEnabled = true;
-            const tasksDiv = document.getElementById('maintenance-tasks');
-            const instructionsDiv = document.getElementById('maintenance-instructions');
-            
-            tasksDiv.style.opacity = '1';
-            tasksDiv.style.pointerEvents = 'auto';
-            
-            instructionsDiv.innerHTML = `
-                <strong>Maintenance Active:</strong> You can now click on maintenance tasks below to perform them. 
-                Complete all tasks to finish the maintenance procedure.
-            `;
-            instructionsDiv.className = 'alert alert-success';
-            
-            logMaintenance(`🔧 Beginning maintenance on ${selectedServerForMaintenance.toUpperCase()}`);
-            logMaintenance('Maintenance tasks are now available. Click on tasks to complete them.');
-        }
-
-        function selectServer(element, serverType) {
-            document.querySelectorAll('.server-unit').forEach(unit => {
-                unit.classList.remove('selected');
-            });
-            
-            element.classList.add('selected');
-            selectedServer = serverType;
-            
-            const analysisDiv = document.getElementById('server-analysis');
-            const resultDiv = document.getElementById('analysis-result');
-            
-            let analysis = '';
-            switch(serverType) {
-                case 'budget':
-                    analysis = `
-                        <div class="alert alert-warning">
-                            <strong>Analysis:</strong> Budget server may not meet performance requirements for 1000 concurrent users.
-                            <ul>
-                                <li>❌ CPU cores insufficient for high load</li>
-                                <li>❌ RAM may cause performance bottlenecks</li>
-                                <li>❌ Storage configuration lacks redundancy</li>
-                                <li>✅ Cost-effective for light workloads</li>
-                            </ul>
-                            <strong>Recommendation:</strong> Consider upgrading for production environment.
-                        </div>
-                    `;
-                    break;
-                case 'performance':
-                    analysis = `
-                        <div class="alert alert-success">
-                            <strong>Analysis:</strong> Performance server meets requirements for the specified workload.
-                            <ul>
-                                <li>✅ Adequate CPU cores for concurrent users</li>
-                                <li>✅ Sufficient RAM for database operations</li>
-                                <li>✅ Hybrid storage provides good performance</li>
-                                <li>✅ Network capacity supports expected traffic</li>
-                            </ul>
-                            <strong>Recommendation:</strong> Optimal choice for this deployment.
-                        </div>
-                    `;
-                    break;
-                case 'enterprise':
-                    analysis = `
-                        <div class="alert alert-info">
-                            <strong>Analysis:</strong> Enterprise server exceeds requirements but provides excellent scalability.
-                            <ul>
-                                <li>✅ High-performance dual CPUs handle heavy workloads</li>
-                                <li>✅ Large RAM capacity supports future growth</li>
-                                <li>✅ Enterprise storage with NVMe performance</li>
-                                <li>⚠️ Higher cost may exceed budget requirements</li>
-                            </ul>
-                            <strong>Recommendation:</strong> Future-proof solution if budget allows.
-                        </div>
-                    `;
-                    break;
-            }
-            
-            resultDiv.innerHTML = analysis;
-            analysisDiv.style.display = 'block';
-        }
-
-        function proceedToInstallation() {
-            document.getElementById('installation-planning').style.display = 'block';
-            logInstallation('Starting server installation procedure...');
-        }
-
-        function installComponent(element, componentType) {
-            if (element.classList.contains('installed')) {
-                logInstallation('⚠️ Component already installed.');
-                return;
-            }
-            
-            const component = componentDefinitions.find(c => c.id === componentType);
-            const componentOrder = component.order;
-            
-            if (componentOrder !== expectedInstallStep) {
-                element.style.border = '3px solid #dc3545';
-                element.style.background = '#f8d7da';
-                
-                let correctNext = componentDefinitions.find(c => c.order === expectedInstallStep);
-                
-                logInstallation(`❌ INCORRECT ORDER: ${component.title} cannot be installed at this step.`);
-                logInstallation(`⚠️ You must complete ${correctNext.title} first (Step ${expectedInstallStep}).`);
-                logInstallation('📚 Proper installation sequence prevents damage and ensures functionality.');
-                
-                setTimeout(() => {
-                    element.style.border = '';
-                    element.style.background = '';
-                }, 2000);
-                return;
-            }
-            
-            element.classList.add('installed');
-            element.style.border = '3px solid #28a745';
-            installProgress += 16.67;
-            expectedInstallStep++;
-            
-            const progressBar = document.getElementById('install-progress');
-            progressBar.style.width = Math.round(installProgress) + '%';
-            progressBar.textContent = Math.round(installProgress) + '%';
-            
-            logInstallation(component.message);
-            
-            const stepInstruction = document.getElementById('step-instruction');
-            if (expectedInstallStep <= 6) {
-                stepInstruction.textContent = stepInstructions[expectedInstallStep - 1];
-            } else {
-                stepInstruction.textContent = 'All components installed - ready for knowledge verification';
-                document.getElementById('current-step').className = 'alert alert-success';
-            }
-            
-            if (installProgress >= 100) {
-                logInstallation('');
-                logInstallation('🎉 Hardware installation completed in correct sequence!');
-                logInstallation('⚡ System ready for POST (Power-On Self Test)');
-                logInstallation('📋 Proceeding to installation knowledge verification...');
-                
-                setTimeout(() => {
-                    document.getElementById('installation-quiz').style.display = 'block';
-                    updateInstallQuestion();
-                }, 1500);
-            }
-        }
-
-        function updateInstallQuestion() {
-            const questions = [
-                {
-                    question: "Why must electrical infrastructure be established before other components?",
-                    answers: [
-                        { text: "Components are too heavy to install first", correct: false },
-                        { text: "All system elements require stable power to function safely", correct: true },
-                        { text: "Electrical systems need the most mounting hardware", correct: false },
-                        { text: "Power systems generate the most operational heat", correct: false }
-                    ]
-                },
-                {
-                    question: "What is the most critical consideration when installing processing components?",
-                    answers: [
-                        { text: "Apply maximum pressure to ensure contact", correct: false },
-                        { text: "Apply thermal interface material and ensure proper cooling", correct: true },
-                        { text: "Install memory first to test compatibility", correct: false },
-                        { text: "Connect power cables before seating processor", correct: false }
-                    ]
-                },
-                {
-                    question: "Why should system configuration be performed after all hardware installation?",
-                    answers: [
-                        { text: "It requires the least technical expertise", correct: false },
-                        { text: "All hardware must be present for proper detection and optimization", correct: true },
-                        { text: "Configuration can be completed remotely", correct: false },
-                        { text: "Firmware settings don't affect system performance", correct: false }
-                    ]
-                }
-            ];
-            
-            const randomQ = questions[Math.floor(Math.random() * questions.length)];
-            const questionElement = document.getElementById('install-question');
-            questionElement.textContent = randomQ.question;
-            
-            const optionsContainer = document.getElementById('quiz-options');
-            optionsContainer.innerHTML = '';
-            
-            randomQ.answers.forEach((answer, index) => {
-                const label = document.createElement('label');
-                label.className = 'answer-option';
-                label.onclick = () => selectInstallAnswer(label, answer.correct);
-                label.innerHTML = `
-                    <input type="radio" name="install-q"> ${answer.text}
-                `;
-                optionsContainer.appendChild(label);
-            });
-        }
-
-        function selectInstallAnswer(element, isCorrect) {
-            document.querySelectorAll('#quiz-options .answer-option').forEach(option => {
-                option.classList.remove('correct', 'incorrect');
-                option.style.pointerEvents = 'none';
-            });
-            
-            element.querySelector('input').checked = true;
-            installAnswerCorrect = isCorrect;
-            
-            if (isCorrect) {
-                element.classList.add('correct');
-            } else {
-                element.classList.add('incorrect');
-            }
-            
-            document.getElementById('submit-install-btn').disabled = false;
-        }
-
-        function submitInstallAnswer() {
-            const feedbackDiv = document.getElementById('install-feedback');
-            
-            if (installAnswerCorrect) {
-                feedbackDiv.innerHTML = `
-                    <div class="alert alert-success">
-                        <strong>Correct!</strong> You understand proper installation procedures. 
-                        The server hardware installation is complete and ready for OS deployment.
-                    </div>
-                `;
-                logInstallation('✅ Knowledge verification passed - installation procedure mastered');
-                logInstallation('🚀 Server ready for operating system installation');
-                installComplete = true;
-            } else {
-                feedbackDiv.innerHTML = `
-                    <div class="alert alert-warning">
-                        <strong>Incorrect.</strong> Review installation best practices. 
-                        Proper procedures prevent hardware damage and ensure reliability.
-                        <br><br>
-                        <button class="btn warning" onclick="retryInstallQuestion()">Try Another Question</button>
-                    </div>
-                `;
-                logInstallation('❌ Knowledge verification failed - review installation procedures');
-            }
-        }
-
-        function retryInstallQuestion() {
-            document.getElementById('install-feedback').innerHTML = '';
-            document.getElementById('submit-install-btn').disabled = true;
-            updateInstallQuestion();
-        }
-
-        function logInstallation(message) {
-            const log = document.getElementById('install-log');
-            const timestamp = new Date().toLocaleTimeString();
-            log.innerHTML += `[${timestamp}] ${message}\n`;
-            log.scrollTop = log.scrollHeight;
-        }
-
-        function selectRAID(element, raidType) {
-            document.querySelectorAll('.raid-option').forEach(option => {
-                option.classList.remove('selected');
-            });
-            
-            element.classList.add('selected');
-            selectedRAID = raidType;
-            
-            const analysisDiv = document.getElementById('raid-analysis');
-            const resultDiv = document.getElementById('raid-result');
-            
-            const raidInfo = raidDefinitions.find(r => r.id === raidType);
-            
-            resultDiv.innerHTML = `
-                <div class="alert alert-${raidInfo.analysis.type}">
-                    <strong>${raidInfo.title} Analysis:</strong>
-                    ${raidInfo.analysis.content}
+                <div class="total-grade" style="font-size: 1.3em; color: #1565c0;">
+                    <strong>Final Grade: <span id="final-percentage">0</span>% (<span id="final-letter">F</span>)</strong>
                 </div>
-            `;
-            
-            analysisDiv.style.display = 'block';
-        }
-
-        function configureStorage() {
-            document.getElementById('storage-config-panel').style.display = 'block';
-            logStorage('Storage configuration panel opened...');
-        }
-
-        function initializeArray() {
-            logStorage('⚠️ WARNING: Initializing storage array...');
-            logStorage('Creating partitions and formatting drives...');
-            setTimeout(() => {
-                logStorage('✅ Array initialization completed successfully');
-                logStorage(`${selectedRAID.toUpperCase()} array created with optimized drive configuration`);
-            }, 2000);
-        }
-
-        function runStorageTest() {
-            logStorage('Running storage performance benchmarks...');
-            logStorage('Sequential Read Test: 850 MB/s');
-            logStorage('Sequential Write Test: 720 MB/s');
-            logStorage('Random Read IOPS: 15,000');
-            logStorage('Random Write IOPS: 12,000');
-            logStorage('✅ Performance benchmarks completed - results within expected parameters');
-        }
-
-        function completeStorageSetup() {
-            logStorage('Finalizing storage deployment...');
-            logStorage('Configuring monitoring and alert systems...');
-            logStorage('✅ Storage deployment completed successfully!');
-            logStorage('Array is ready for production operations.');
-        }
-
-        function logStorage(message) {
-            const log = document.getElementById('storage-log');
-            const timestamp = new Date().toLocaleTimeString();
-            log.innerHTML += `[${timestamp}] ${message}\n`;
-            log.scrollTop = log.scrollHeight;
-        }
-
-        function performMaintenance(element, taskType) {
-            if (!maintenanceEnabled) {
-                alert('Please select a server and click "Begin Maintenance" first.');
-                return;
-            }
-            
-            if (element.classList.contains('completed')) {
-                logMaintenance(`⚠️ Task "${taskType}" already completed.`);
-                return;
-            }
-            
-            element.classList.add('completed');
-            const statusSpan = element.querySelector('.task-status');
-            statusSpan.textContent = 'Completed';
-            statusSpan.style.color = '#28a745';
-            statusSpan.style.fontWeight = 'bold';
-            
-            completedTasks.push(taskType);
-            maintenanceProgress = (completedTasks.length / 6) * 100;
-            
-            const progressBar = document.getElementById('maintenance-progress');
-            progressBar.style.width = maintenanceProgress + '%';
-            progressBar.textContent = Math.round(maintenanceProgress) + '%';
-            
-            const task = maintenanceDefinitions.find(t => t.id === taskType);
-            logMaintenance(`${task.message} (${task.time})`);
-            
-            if (completedTasks.length === 6) {
-                logMaintenance('');
-                logMaintenance('🎉 All maintenance procedures completed successfully!');
-                logMaintenance('Systems are ready to return to production status.');
-                logMaintenance('Total maintenance duration: 2.5 hours');
-                document.getElementById('maintenance-results').style.display = 'block';
-            }
-        }
-
-        function logMaintenance(message) {
-            const log = document.getElementById('maintenance-log');
-            const timestamp = new Date().toLocaleTimeString();
-            log.innerHTML += `[${timestamp}] ${message}\n`;
-            log.scrollTop = log.scrollHeight;
-        }
-
-        function generateMaintenanceReport() {
-            logMaintenance('');
-            logMaintenance('=== MAINTENANCE REPORT ===');
-            logMaintenance('Maintenance Window: ' + new Date().toLocaleDateString());
-            logMaintenance('Duration: 2.5 hours');
-            logMaintenance('Tasks Completed: 6/6');
-            logMaintenance('Systems Status: All Online');
-            logMaintenance('Next Scheduled Maintenance: ' + new Date(Date.now() + 30*24*60*60*1000).toLocaleDateString());
-            logMaintenance('Report generated and distributed to management.');
-        }
-
-        function selectAnswer(element, isCorrect) {
-            const questionName = element.querySelector('input').name;
-            
-            document.querySelectorAll(`input[name="${questionName}"]`).forEach(input => {
-                input.closest('.answer-option').classList.remove('correct', 'incorrect');
-            });
-            
-            assessmentAnswers[questionName] = isCorrect;
-            
-            if (isCorrect) {
-                element.classList.add('correct');
-            } else {
-                element.classList.add('incorrect');
-            }
-        }
-
-        function gradeAssessment() {
-            const totalQuestions = 3;
-            const correctAnswers = Object.values(assessmentAnswers).filter(answer => answer === true).length;
-            const percentage = Math.round((correctAnswers / totalQuestions) * 100);
-            
-            let grade = '';
-            let feedback = '';
-            
-            if (percentage >= 90) {
-                grade = 'Excellent (A)';
-                feedback = 'Outstanding performance! You demonstrate mastery of server hardware installation and maintenance concepts.';
-            } else if (percentage >= 80) {
-                grade = 'Good (B)';
-                feedback = 'Good understanding of the material. Review areas where incorrect answers were selected.';
-            } else if (percentage >= 70) {
-                grade = 'Satisfactory (C)';
-                feedback = 'Basic understanding demonstrated. Additional study recommended for production environment readiness.';
-            } else {
-                grade = 'Needs Improvement';
-                feedback = 'Significant gaps in understanding. Please review course materials and retake assessment.';
-            }
-            
-            const resultsDiv = document.getElementById('assessment-results');
-            resultsDiv.innerHTML = `
-                <div class="alert alert-info">
-                    <h4>Assessment Results</h4>
-                    <p><strong>Score:</strong> ${correctAnswers}/${totalQuestions} (${percentage}%)</p>
-                    <p><strong>Grade:</strong> ${grade}</p>
-                    <p><strong>Feedback:</strong> ${feedback}</p>
-                </div>
-                
-                <div class="alert alert-success">
-                    <h4>Competency Evaluation - CC1.1</h4>
-                    <p><strong>LO1.1.1:</strong> ${assessmentAnswers.q1 ? '✅ Proficient' : '❌ Needs Development'} - Hardware Requirements Evaluation</p>
-                    <p><strong>LO1.1.2:</strong> ${assessmentAnswers.q2 ? '✅ Proficient' : '❌ Needs Development'} - Storage Solutions Deployment</p>
-                    <p><strong>LO1.1.3:</strong> ${assessmentAnswers.q3 ? '✅ Proficient' : '❌ Needs Development'} - Maintenance Procedures</p>
-                </div>
-            `;
-        }
-
-        // Initialize the lab
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeRandomizedContent();
-            logInstallation('Virtual Server Hardware Lab initialized successfully.');
-            logInstallation('Ready to begin hardware evaluation procedures.');
-        });
-    </script>
-</body>
-</html>
+                <button class="btn success" onclick="exportFinalGrade()" style="margin-top: 15px;">Export
